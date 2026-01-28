@@ -1,0 +1,35 @@
+___________________________________________
+Plotting HIstograms of Colony Size - PHICS
+___________________________________________
+
+Program menu consists of File, Fit and Help modules.
+
+File:
+------
+With File module you can open a file with the colony size data (Open), it will automatically plot the histogram. Within this module you can also save the plot as PNG (Save PNG) and PDF format (Save PDF).
+
+After you plot the histogram you can change the range of X axis setting x min and x max values. To create histograms the entire range of data should be divided into non-overlapping intervals called bins. It is possible to plot histograms with different number of bins by writing a number of bins in a proper place. The width of bin is calculated as (xmax-xmin)/No. of bins. To visualize your changes a Plot button (right bottom corner) should be chosen.
+
+Fit:
+------
+To fit a function to your data choose Fit module from the program menu. Only the Gaussian distribution is available at the moment. By clicking on it the function will be fitted and three parameters are displayed in the figure: A – an amplitude, mean – a mean value and sigma – a standard deviation. The least square method is used to fit and the Gaussian distribution is described by the equation:
+Y(x)=A*exp*(-(x-mean)^2/(2*sigma^2))
+
+Help:
+------
+To open this instruction click Open instruction, to close it - click a Quit button (right top corner).
+
+
+Some definitions:
+----------------------
+Bin – the interval of values with a given width including the certain amount of data; 
+x min – minimal value of the X-axis (the minimal colony size) plotted in the histogram;
+x max – maximal value of the X-axis (the maximal colony size) plotted in the histogram;
+A – the amplitude of the fitted Gaussian distribution (the maximal value of Y-axis);
+Mean – mean value fitted from the Gaussian distribution;
+Sigma – a standard deviation.
+
+
+
+
+
