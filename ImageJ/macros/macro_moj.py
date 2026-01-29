@@ -16,7 +16,7 @@ from ij.io import OpenDialog, DirectoryChooser
 from java.awt import Button
 from java.awt.event import ActionListener, ActionEvent
 from ij.plugin.frame.Editor import actionPerformed
-import ij
+# import ij
 
 srcDir = False
 output_directory = False
@@ -43,9 +43,7 @@ greet.addMessage("Please press \"Select FIRST image\" to chose images and \"Sele
                  "to specify where to save data.")
 bt = TrimmedButton("Select FIRST image",10)
 bt.addActionListener(MyListener())
-
 greet.add(bt)
-
 bt2 = TrimmedButton("Select output directory",10)
 a = bt2.addActionListener(MyListener2())
 greet.add(bt2)
@@ -86,7 +84,6 @@ else:
     first_image = nazwa[:idx2]
     file_name = ''
     file_full = nazwa[idx2:]
-
 
 dia = NonBlockingGenericDialog("SETTINGS")
 dia.addMessage("Choose analysis parameters: ")
@@ -133,10 +130,12 @@ if checkboxes[3]:
     dia_a.addNumericField('Rolling ball radius:', int(w*0.0306) , 0)
     dia_a.addNumericField('Minimum colony size:', int(0.01*w), 0)
     dia_a.addNumericField('Circularity:', 0.5, 0 )
+
     if not units_known:
         dia_a.addNumericField('Sigma:', int(0.001*w), 0 )
     else:
         dia_a.addNumericField('Sigma:', int(( 1.9*10**(-6))*dpi**2 + (6.3*10**(-4))*dpi + 1.3 ), 0 )
+
     dia_a.showDialog()
     values = [dia_a.getNextNumber(), dia_a.getNextNumber(), dia_a.getNextNumber(),  dia_a.getNextNumber()]
     rolling_ball = values[0]
@@ -204,7 +203,7 @@ def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, t
     #0.0306 is the const value calculated based on many picturies analysis.
 
     def ROI_manager():
-        IJ.run("Roi Defaults...", "color=red stroke=5 group=0");
+        IJ.run("Roi Defaults...", "color=orange stroke=2.5 group=0");
         imp.setRoi(OvalRoi(w/10, h/10, w/1.2, h/1.2))
         imp.show()
 
@@ -230,8 +229,8 @@ def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, t
 
     if Roi_flag:
         if int(image_number) == int(first_image):
-            roi2 =  ROI_manager()
             global roi2
+            roi2 =  ROI_manager()
             roi_def = roi2
         else:
             # imp.setRoi(roi_def)
@@ -288,7 +287,7 @@ def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, t
         print("There was a problem in analyzing", blobs)
 
     areas = table.getColumn(0)
-    # print("The number of colonies is ", len(areas))
+    # print ("The number of colonies is ", len(areas))
 
     IJ.saveAs( imp, "png", path )
     imp.changes = False
@@ -316,7 +315,8 @@ for image_number in range (int(first_image), last_image + 1):
                 path_1 = str(image_number)+ '_' + str(img_number) + file_name + '.txt'
                 path = os.path.join(output_directory, path_1)
                 if img_number > 1:
-                    a = count_colonies( imp2, img_number , 1, checkboxes[1], checkboxes[0], thresh_flag_score , path, a[1] )
+                    a = count_colonies( imp2, img_number , 1, checkboxes[1], checkboxes[0], thresh_flag_score ,
+                                        path, a[1] )
                 elif img_number == 1 and iteration == 1:
                     a = count_colonies( imp2, img_number , 1, checkboxes[1], checkboxes[0], thresh_flag_score, path )
                 else:
@@ -399,7 +399,19 @@ for image_number in range (int(first_image), last_image + 1):
         f.close()
         a[2].changes = False
         a[2].close()
-        wydruk = str(image_number) + ': ' + str(liczba)
+        wydruk = 'Image ' + str(image_number) + '\t' + str(liczba) + '\n'
+        path_2 = 'Summary.txt'
+        path2 = os.path.join(output_directory, path_2)
+
+        if image_number == first_image:
+            print(image_number)
+            f = open(path2, 'a')
+            header = 'Image\tNumber of colonies\n'
+            f.write(header + wydruk)
+        else:
+            f = open(path2, 'a')
+            f.write(wydruk)
+            f.close()
         print (wydruk)
         if liczba > 10:
             thresh_flag_score = False
