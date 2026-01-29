@@ -156,12 +156,7 @@ print("Automatic Threshold: " + str(checkboxes[0]) + "\nSame ROI for all images:
       "\n6-well plate format: " + str(checkboxes[2]) + "\nRolling ball radius: " + str(rolling_ball) +
       "\nMinimum colony size: " + str(minimum_col) + "\nCircularity: " + str(circ) + "\n")
 
-"""
-The Roi_flag is never defined causing the program to loop back and require the user to redefine on each image.
-"""
-Roi_flag = checkboxes[1]
-
-def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, thres_iteration_flag, path,
+def count_colonies(imp, image_number, first_image,  Roi_flag, threshold_flag, thres_iteration_flag, path,
                     roi_def = OvalRoi(69, 92, 646, 651)):
 
     w = imp.getWidth()
@@ -232,10 +227,13 @@ def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, t
             global roi2
             roi2 =  ROI_manager()
             roi_def = roi2
+            print("ROI 235: ", roi2, roi_def)
         else:
-            # imp.setRoi(roi_def)
+            imp.setRoi(roi2)
+            # roi_def = roi2
+            print("ROI 238: ", roi2, roi_def)
             imp.show()
-            # roi2 = roi_def
+
     else:
         roi2 = ROI_manager()
 
@@ -243,6 +241,7 @@ def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, t
         IJ.run("Auto Threshold", "method=Default white")
 #		IJ.run("Auto Local Threshold", "method=Otsu radius=10 parameter_1=0 parameter_2=0 white")
     elif threshold_flag == False and thres_iteration_flag == True:
+
         IJ.run("Threshold...")
         WaitForUserDialog("Adjust threshold level with the scrollbar. \n "
                           "All colonies should be marked and at the same time background should not be.\n "
@@ -252,14 +251,18 @@ def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, t
         thres_min = imp.getProcessor().getMinThreshold()
         global thres_max
         thres_max = imp.getProcessor().getMaxThreshold()
+        print("Line 254, Thresholding... ", thres_min, thres_max)
         IJ.setThreshold(imp, thres_min, thres_max);
         IJ.run(imp, "Convert to Mask", "")
         IJ.selectWindow("Threshold")
         IJ.run("Close")
+        thresh_flag_score = False
     else:
+        print("Line 260, Thresholding... ", thres_min, thres_max)
         IJ.setThreshold(imp, thres_min, thres_max);
         IJ.run(imp, "Convert to Mask", "")
 
+    imp.setRoi(roi2)
     ip = imp.getProcessor()
     ImageProcessor.erode(ip)
     ImageProcessor.dilate(ip)
@@ -280,6 +283,7 @@ def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, t
     pa = ParticleAnalyzer(ParticleAnalyzer.SHOW_ROI_MASKS, Measurements.AREA, table, minimum_col,
                           Double.POSITIVE_INFINITY, circ, 1.0)
     pa.setHideOutputImage(True)
+
 
     if pa.analyze(imp):
         pass
@@ -304,6 +308,7 @@ for image_number in range (int(first_image), last_image + 1):
     iteration = 1
 
     if checkboxes[2]:
+        print("6-well plate format")
         w = imp.getWidth()
         h = imp.getHeight()
         img_number = 1
@@ -367,6 +372,7 @@ for image_number in range (int(first_image), last_image + 1):
             a = count_colonies( imp, image_number, first_image, checkboxes[1], checkboxes[0], thresh_flag_score, path)
         else:
             a = count_colonies( imp, image_number, first_image, checkboxes[1], checkboxes[0], thresh_flag_score, path)
+
         f = open (path, 'w')
         if a[0] is None:
             liczba = 0
@@ -405,9 +411,10 @@ for image_number in range (int(first_image), last_image + 1):
 
         if image_number == first_image:
             print(image_number)
-            f = open(path2, 'a')
+            f = open(path2, 'w')
             header = 'Image\tNumber of colonies\n'
-            f.write(header + wydruk)
+            f.write('Image\tNumber of colonies\n' + wydruk)
+            f.close()
         else:
             f = open(path2, 'a')
             f.write(wydruk)
