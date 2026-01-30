@@ -12,12 +12,13 @@ from ij.gui import (HistogramWindow, OvalRoi, GenericDialog, TrimmedButton, Dial
                     Toolbar, ImageWindow, Roi, WaitForUserDialog)
 from ij.plugin import ChannelSplitter
 import os
+import java.time
 from ij.io import OpenDialog, DirectoryChooser
 from java.awt import Button
 from java.awt.event import ActionListener, ActionEvent
 from ij.plugin.frame.Editor import actionPerformed
-# import ij
 
+macro_version = '2.0.0'
 srcDir = False
 output_directory = False
 
@@ -159,16 +160,13 @@ else:
     else:
         sigma = ( 1.9*10**(-6))*dpi**2 + (6.3*10**(-4))*dpi + 1.3
 
-print("Automatic Threshold: " + str(checkboxes[0]) + "\nSame ROI for all images: " + str(checkboxes[1]) +
+checkbox_values = ("Automatic Threshold: " + str(checkboxes[0]) + "\nSame ROI for all images: " + str(checkboxes[1]) +
       "\n6-well plate format: " + str(checkboxes[2]) + "\nRolling ball radius: " + str(rolling_ball) +
       "\nMinimum colony size: " + str(minimum_col) + "\nMaximum colony size: " + str(maximum_col) + "\nCircularity: " + str(circ) + "\n")
 
-"""
-The Roi_flag is never defined causing the program to loop back and require the user to redefine on each image.
-"""
-Roi_flag = checkboxes[1]
+print(checkbox_values)
 
-def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, thres_iteration_flag, path,
+def count_colonies(imp, image_number, first_image,  Roi_flag, threshold_flag, thres_iteration_flag, path,
                     roi_def = OvalRoi(69, 92, 646, 651)):
 
     w = imp.getWidth()
@@ -210,7 +208,7 @@ def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, t
     #0.0306 is the const value calculated based on many picturies analysis.
 
     def ROI_manager():
-        IJ.run("Roi Defaults...", "color=orange stroke=2.5 group=0");
+        IJ.run("Roi Defaults...", "color=orange stroke=3.0 group=0");
         imp.setRoi(OvalRoi(w/10, h/10, w/1.2, h/1.2))
         imp.show()
 
@@ -240,34 +238,45 @@ def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, t
             roi2 =  ROI_manager()
             roi_def = roi2
         else:
-            pass
-            # imp.setRoi(roi_def)
+            imp.setRoi(roi2)
+            # roi_def = roi2
             imp.show()
-            # roi2 = roi_def
+
     else:
         roi2 = ROI_manager()
 
     if threshold_flag:
-        IJ.run("Auto Threshold", "method=Default white")
-#		IJ.run("Auto Local Threshold", "method=Otsu radius=10 parameter_1=0 parameter_2=0 white")
+        # IJ.run("Auto Threshold", "method=Default white")
+        IJ.run("Auto Threshold", "method=Yen white")
+        # IJ.run("Auto Local Threshold", "method=Yen radius=10 parameter_1=0 parameter_2=0 white")
+        """
+        Need to capture the threshold values for the summary file.
+        """
+        thres_min = imp.getProcessor().getMinThreshold()
+        thres_max = imp.getProcessor().getMaxThreshold()
+
     elif threshold_flag == False and thres_iteration_flag == True:
+
         IJ.run("Threshold...")
         WaitForUserDialog("Adjust threshold level with the scrollbar. \n "
                           "All colonies should be marked and at the same time background should not be.\n "
                           "DO NOT press any button on the threshold window.\n "
                           "Once the threshold value is set click OK below").show()
         global thres_min
-        thres_min = imp.getProcessor().getMinThreshold()
         global thres_max
+        thres_min = imp.getProcessor().getMinThreshold()
         thres_max = imp.getProcessor().getMaxThreshold()
+
         IJ.setThreshold(imp, thres_min, thres_max);
         IJ.run(imp, "Convert to Mask", "")
         IJ.selectWindow("Threshold")
         IJ.run("Close")
+
     else:
         IJ.setThreshold(imp, thres_min, thres_max);
         IJ.run(imp, "Convert to Mask", "")
 
+    imp.setRoi(roi2)
     ip = imp.getProcessor()
     ImageProcessor.erode(ip)
     ImageProcessor.dilate(ip)
@@ -296,7 +305,7 @@ def count_colonies( imp, image_number, first_image,  Roi_flag, threshold_flag, t
         # print("There was a problem in analyzing", blobs)
 
     areas = table.getColumn(0)
-    # print ("The number of colonies is ", len(areas))
+    # The number of colonies is len(areas)
 
     IJ.saveAs( imp, "png", path )
     imp.changes = False
@@ -313,6 +322,7 @@ for image_number in range (int(first_image), last_image + 1):
     iteration = 1
 
     if checkboxes[2]:
+        print("6-well plate format")
         w = imp.getWidth()
         h = imp.getHeight()
         img_number = 1
@@ -376,6 +386,7 @@ for image_number in range (int(first_image), last_image + 1):
             a = count_colonies( imp, image_number, first_image, checkboxes[1], checkboxes[0], thresh_flag_score, path)
         else:
             a = count_colonies( imp, image_number, first_image, checkboxes[1], checkboxes[0], thresh_flag_score, path)
+
         f = open (path, 'w')
         if a[0] is None:
             liczba = 0
@@ -404,22 +415,33 @@ for image_number in range (int(first_image), last_image + 1):
             if liczba != 0:
                 for area in a[0]:
                     f.write(str(area) + '\n')
-
         f.close()
+
         a[2].changes = False
         a[2].close()
-        wydruk = 'Image ' + str(image_number) + '\t' + str(liczba) + '\n'
+        wydruk = str(image_number) + '.tif' + '\t' + str(liczba)
         path_2 = 'Summary.txt'
         path2 = os.path.join(output_directory, path_2)
 
-        if image_number == first_image:
-            f = open(path2, 'a')
-            header = 'Image\tNumber of colonies\n'
-            f.write(header + wydruk)
-        else:
-            f = open(path2, 'a')
-            f.write(wydruk)
+        """
+        If first image, setup summary file and write header.
+        """
+        if int(image_number) == int(first_image):
+            f = open(path2, 'w')
+            min_threshold = 'Minimum Threshold: ' + str(thres_min) + '\n'
+            max_threshold = 'Maximum Threshold: ' + str(thres_max) + '\n'
+            timeNow = 'countPHICS v' + macro_version + ' run: '+ str(java.time.Instant.now()) + '\n'
+            header = (timeNow + checkbox_values +
+                      '\nImage\tNumber of colonies\tMin Threshold\tMax Threshold\tImage ROI\n')
+
+            f.write(header)
             f.close()
+
+        f = open(path2, 'a')
+        f.write(wydruk + '\t' + str(thres_min) + '\t' + str(thres_max) + '\t' + str(roi2) + '\n')
+        f.close()
+
+        print ('Image ' + str(image_number) + ':  ' + str(liczba) + '\n')
         if liczba > 10:
             thresh_flag_score = False
 
