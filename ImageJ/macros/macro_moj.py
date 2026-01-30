@@ -38,7 +38,7 @@ class MyListener2 (ActionListener):
         output_directory = od2.getDirectory()
 
 greet = NonBlockingGenericDialog("Colony Counter")
-greet.addMessage("Our Colony Counter is an ImageJ macro which counts the number and calculates sizes of colonies "
+greet.addMessage("Colony Counter is an ImageJ macro which counts the number and calculates sizes of colonies "
                  "located in the given image.")
 greet.addMessage("Please press \"Select FIRST image\" to chose images and \"Select output directory\" "
                  "to specify where to save data.")
@@ -65,6 +65,8 @@ while 1<2:
         bt2.addActionListener(MyListener2())
         greet.add(bt2)
         greet.showDialog()
+        # srcDir = u'C:\\Users\\Paolo_Lab\\OneDrive - University of North Carolina at Chapel Hill\\Desktop\\prog\\GuptaLab\\countPHICS'
+        # output_directory = u'C:\\Users\\Paolo_Lab\\OneDrive - University of North Carolina at Chapel Hill\\Desktop\\countPHICS\\countPHICS\\countPHICS\\output_data'
     else:
         break
 
@@ -74,6 +76,8 @@ if output_directory is None:
     output_directory = '../output_data'
 
 nazwa =  od.getFileName()
+# nazwa = u'1_test_image.tif'
+
 if '_' in nazwa:
     idx = nazwa.find('_')
     first_image = nazwa[:idx]
@@ -130,7 +134,8 @@ if checkboxes[3]:
                      "If you want to change them it is recommended to read Instruction.pdf first.")
     dia_a.addNumericField('Rolling ball radius:', int(w*0.0306) , 0)
     dia_a.addNumericField('Minimum colony size:', int(0.01*w), 0)
-    dia_a.addNumericField('Circularity:', 0.5, 0 )
+    dia_a.addNumericField('Maximum colony size:', int(w), 0)
+    dia_a.addNumericField('Circularity:', float(0.5), 0 )
 
     if not units_known:
         dia_a.addNumericField('Sigma:', int(0.001*w), 0 )
@@ -138,15 +143,17 @@ if checkboxes[3]:
         dia_a.addNumericField('Sigma:', int(( 1.9*10**(-6))*dpi**2 + (6.3*10**(-4))*dpi + 1.3 ), 0 )
 
     dia_a.showDialog()
-    values = [dia_a.getNextNumber(), dia_a.getNextNumber(), dia_a.getNextNumber(),  dia_a.getNextNumber()]
+    values = [dia_a.getNextNumber(), dia_a.getNextNumber(), dia_a.getNextNumber(),  dia_a.getNextNumber(), dia_a.getNextNumber()]
     rolling_ball = values[0]
     minimum_col = values[1]
-    circ = values[2]
-    sigma = values[3]
-    print(circ)
+    maximum_col = values[2]
+    circ = values[3]
+    sigma = values[4]
+    # print(circ)
 else:
     rolling_ball = int(w*0.0306)
     minimum_col = int(0.01*w)
+    maximum_col = int(w)
     circ = 0.5
     if not units_known:
         sigma = 0.001 * w
@@ -155,7 +162,7 @@ else:
 
 checkbox_values = ("Automatic Threshold: " + str(checkboxes[0]) + "\nSame ROI for all images: " + str(checkboxes[1]) +
       "\n6-well plate format: " + str(checkboxes[2]) + "\nRolling ball radius: " + str(rolling_ball) +
-      "\nMinimum colony size: " + str(minimum_col) + "\nCircularity: " + str(circ) + "\n")
+      "\nMinimum colony size: " + str(minimum_col) + "\nMaximum colony size: " + str(maximum_col) + "\nCircularity: " + str(circ) + "\n")
 
 print(checkbox_values)
 
@@ -288,13 +295,14 @@ def count_colonies(imp, image_number, first_image,  Roi_flag, threshold_flag, th
     # 7. The maximum circularity
 
     pa = ParticleAnalyzer(ParticleAnalyzer.SHOW_ROI_MASKS, Measurements.AREA, table, minimum_col,
-                          Double.POSITIVE_INFINITY, circ, 1.0)
+                          maximum_col, circ, 1.0)
     pa.setHideOutputImage(True)
 
     if pa.analyze(imp):
         pass
     else:
-        print("There was a problem in analyzing", blobs)
+        pass
+        # print("There was a problem in analyzing", blobs)
 
     areas = table.getColumn(0)
     # The number of colonies is len(areas)
@@ -436,3 +444,7 @@ for image_number in range (int(first_image), last_image + 1):
         print ('Image ' + str(image_number) + ':  ' + str(liczba) + '\n')
         if liczba > 10:
             thresh_flag_score = False
+
+WaitForUserDialog("Analysis complete!", "The analysis is complete. \n"
+               "The results are saved in the output directory.\n"
+               "ImageJ will now automatically close.").show()
