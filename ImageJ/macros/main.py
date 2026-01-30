@@ -5,7 +5,7 @@ from pathlib import Path
 current_dir = Path(__file__).parent.resolve()
 
 fiji_path = current_dir.parent / "ImageJ-win64.exe"
-fiji_path_mac = Path("/Applications/Fiji.app")
+fiji_path_mac = Path("/Users/pguerra/Library/CloudStorage/OneDrive-UniversityofNorthCarolinaatChapelHill/Desktop/Fiji")
 script_path = current_dir / "macro_moj.py"
 # input_dir = r"image_dir"
 # output_dir = r"output_dir"

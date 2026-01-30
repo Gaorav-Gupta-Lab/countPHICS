@@ -66,7 +66,7 @@ QPushButton#cancel_btn:disabled {
 class FijiRunnerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Fiji Automation Interface")
+        self.setWindowTitle("Colony Counter Interface")
         self.resize(700, 500)
         self.setStyleSheet(STYLE_SHEET)
 

@@ -37,7 +37,7 @@ class MyListener2 (ActionListener):
         output_directory = od2.getDirectory()
 
 greet = NonBlockingGenericDialog("Colony Counter")
-greet.addMessage("Our Colony Counter is an ImageJ macro which counts the number and calculates sizes of colonies "
+greet.addMessage("Colony Counter is an ImageJ macro which counts the number and calculates sizes of colonies "
                  "located in the given image.")
 greet.addMessage("Please press \"Select FIRST image\" to chose images and \"Select output directory\" "
                  "to specify where to save data.")
@@ -74,8 +74,8 @@ if greet.wasOKed() and output_directory == False:
 if output_directory is None:
     output_directory = '../output_data'
 
-# nazwa =  od.getFileName()
-nazwa = u'1_test_image.tif'
+nazwa =  od.getFileName()
+# nazwa = u'1_test_image.tif'
 
 if '_' in nazwa:
     idx = nazwa.find('_')
