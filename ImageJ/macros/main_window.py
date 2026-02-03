@@ -61,6 +61,15 @@ QPushButton#cancel_btn:disabled {
     background-color: #4a3232;
     color: #7d7d7d;
 }
+
+QPushButton#exit_btn {
+    background-color: #555555;
+    border: 1px solid #777777;
+}
+
+QPushButton#exit_btn:hover {
+    background-color: #777777;
+}
 """
 
 class FijiRunnerGUI(QMainWindow):
@@ -93,19 +102,25 @@ class FijiRunnerGUI(QMainWindow):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(10)
 
-        self.run_btn = QPushButton("▶  LAUNCH FIJI")
+        self.run_btn = QPushButton("▶ LAUNCH FIJI")
         self.run_btn.setObjectName("run_btn")
         self.run_btn.setCursor(Qt.PointingHandCursor)
         self.run_btn.clicked.connect(self.start_process)
         
-        self.cancel_btn = QPushButton("✖  CANCEL")
+        self.cancel_btn = QPushButton("CANCEL PROCESS")
         self.cancel_btn.setObjectName("cancel_btn")
         self.cancel_btn.setCursor(Qt.PointingHandCursor)
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self.cancel_process)
 
+        self.exit_btn = QPushButton("✖ EXIT")
+        self.exit_btn.setObjectName("exit_btn")
+        self.exit_btn.setCursor(Qt.PointingHandCursor)
+        self.exit_btn.clicked.connect(self.close)
+
         button_layout.addWidget(self.run_btn)
         button_layout.addWidget(self.cancel_btn)
+        button_layout.addWidget(self.exit_btn)
         
         layout.addLayout(button_layout)
         self.setCentralWidget(main_widget)
@@ -155,7 +170,23 @@ class FijiRunnerGUI(QMainWindow):
 
     def handle_stderr(self):
         data = self.process.readAllStandardError().data().decode()
-        self.log_to_console(data.strip(), "#ff5d5d")
+        
+        # List of "noisy" keywords to ignore
+        junk_keywords = [
+            "net.imagej", 
+            "java.net",
+            "java.lang",
+            "java.rmi",
+            "javassist",
+            "org.scijava",
+            "sun.reflect",
+            "sun.rmi"
+        ]
+        
+        for line in data.splitlines():
+            # Only log the line if NONE of the junk keywords are in it
+            if not any(key in line for key in junk_keywords):
+                self.log_to_console(line.strip(), "#eeec62") # Red for real errors
 
     def process_finished(self, exit_code, exit_status):
         color = "#5fb3b3" if exit_code == 0 else "#b6b6b6"

@@ -1,18 +1,25 @@
-from ij import IJ, ImagePlus
-from ij.process import ImageProcessor
-from ij.plugin.filter import ParticleAnalyzer, RGBStackSplitter, BackgroundSubtracter
-from ij.measure import ResultsTable
-from ij.plugin.frame import RoiManager
-from ij.measure import Measurements
-from ij.gui import (OvalRoi, TrimmedButton, NonBlockingGenericDialog,
+from ij import IJ, ImagePlus # type: ignore
+from ij.process import ImageProcessor # type: ignore
+from ij.plugin.filter import ParticleAnalyzer, RGBStackSplitter, BackgroundSubtracter # type: ignore
+from ij.measure import ResultsTable # type: ignore
+from ij.plugin.frame import RoiManager # type: ignore
+from ij.measure import Measurements # type: ignore
+from ij.gui import (OvalRoi, TrimmedButton, NonBlockingGenericDialog, # type: ignore
                     Toolbar, Roi, WaitForUserDialog, Overlay)
-from ij.io import OpenDialog, DirectoryChooser
+from ij.io import OpenDialog, DirectoryChooser # type: ignore
 
 import os
 
-import java.time
-from java.awt import Color
-from java.awt.event import ActionListener
+import java.time # type: ignore
+from java.awt import Color # type: ignore
+from java.awt.event import ActionListener # type: ignore
+from java.lang import System # type: ignore
+
+# Suppress SciJava/ImageJ2 internal logging noise
+System.setProperty("scijava.log.level", "error")
+
+# Suppress the specific "WindowsPreferences" warning
+System.setProperty("java.util.prefs.PreferencesFactory", "java.util.prefs.WindowsPreferencesFactory")
 
 macro_version = '2.0.1'
 srcDir = False
