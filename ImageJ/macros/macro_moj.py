@@ -1,24 +1,20 @@
-from java.io import File
-from ij import IJ, WindowManager, ImagePlus, Macro, ImageStack
-from ij.process import FloatProcessor,LUT, ByteProcessor, ImageProcessor
-from java.util import Random
-from jarray import zeros
-from ij.plugin.filter import EDM, ParticleAnalyzer, RGBStackSplitter, GaussianBlur, BackgroundSubtracter
+from ij import IJ, ImagePlus
+from ij.process import ImageProcessor
+from ij.plugin.filter import ParticleAnalyzer, RGBStackSplitter, BackgroundSubtracter
 from ij.measure import ResultsTable
-from ij.plugin.frame import RoiManager, ThresholdAdjuster
+from ij.plugin.frame import RoiManager
 from ij.measure import Measurements
-from java.lang import Double
-from ij.gui import (HistogramWindow, OvalRoi, GenericDialog, TrimmedButton, DialogListener, NonBlockingGenericDialog,
-                    Toolbar, ImageWindow, Roi, WaitForUserDialog)
-from ij.plugin import ChannelSplitter
-import os
-import java.time
+from ij.gui import (OvalRoi, TrimmedButton, NonBlockingGenericDialog,
+                    Toolbar, Roi, WaitForUserDialog, Overlay)
 from ij.io import OpenDialog, DirectoryChooser
-from java.awt import Button
-from java.awt.event import ActionListener, ActionEvent
-from ij.plugin.frame.Editor import actionPerformed
 
-macro_version = '2.0.0'
+import os
+
+import java.time
+from java.awt import Color
+from java.awt.event import ActionListener
+
+macro_version = '2.0.1'
 srcDir = False
 output_directory = False
 
@@ -65,8 +61,6 @@ while 1<2:
         bt2.addActionListener(MyListener2())
         greet.add(bt2)
         greet.showDialog()
-        # srcDir = u'C:\\Users\\Paolo_Lab\\OneDrive - University of North Carolina at Chapel Hill\\Desktop\\prog\\GuptaLab\\countPHICS'
-        # output_directory = u'C:\\Users\\Paolo_Lab\\OneDrive - University of North Carolina at Chapel Hill\\Desktop\\countPHICS\\countPHICS\\countPHICS\\output_data'
     else:
         break
 
@@ -76,7 +70,6 @@ if output_directory is None:
     output_directory = '../output_data'
 
 nazwa =  od.getFileName()
-# nazwa = u'1_test_image.tif'
 
 if '_' in nazwa:
     idx = nazwa.find('_')
@@ -149,7 +142,7 @@ if checkboxes[3]:
     maximum_col = values[2]
     circ = values[3]
     sigma = values[4]
-    # print(circ)
+
 else:
     rolling_ball = int(w*0.0306)
     minimum_col = int(0.01*w)
@@ -245,6 +238,8 @@ def count_colonies(imp, image_number, first_image,  Roi_flag, threshold_flag, th
     else:
         roi2 = ROI_manager()
 
+    global thres_min
+    global thres_max
     if threshold_flag:
         # IJ.run("Auto Threshold", "method=Default white")
         IJ.run("Auto Threshold", "method=Yen white")
@@ -262,8 +257,6 @@ def count_colonies(imp, image_number, first_image,  Roi_flag, threshold_flag, th
                           "All colonies should be marked and at the same time background should not be.\n "
                           "DO NOT press any button on the threshold window.\n "
                           "Once the threshold value is set click OK below").show()
-        global thres_min
-        global thres_max
         thres_min = imp.getProcessor().getMinThreshold()
         thres_max = imp.getProcessor().getMaxThreshold()
 
@@ -294,18 +287,43 @@ def count_colonies(imp, image_number, first_image,  Roi_flag, threshold_flag, th
     # 6. The minimum circularity of a particle
     # 7. The maximum circularity
 
-    pa = ParticleAnalyzer(ParticleAnalyzer.SHOW_ROI_MASKS, Measurements.AREA, table, minimum_col,
-                          maximum_col, circ, 1.0)
-    pa.setHideOutputImage(True)
-
+    pa = ParticleAnalyzer(ParticleAnalyzer.ADD_TO_MANAGER | ParticleAnalyzer.SHOW_NONE, 
+                         Measurements.AREA, table, float(minimum_col),
+                         float(maximum_col), float(circ), 1.0)
+    
+    roim = RoiManager.getRoiManager()
+    roim.reset() # Clear previous results
+    
     if pa.analyze(imp):
-        pass
+        # Reloaded version since original image was converted to a mask.
+        imp_result = IJ.openImage(os.path.join(srcDir, str(int(image_number)) + file_full))
+        
+        # Add the ROI boundary to the image in Orange
+        roi2.setStrokeColor(Color.orange)
+        roi2.setStrokeWidth(3)
+        
+        # Create an Overlay to hold drawings
+        ol = Overlay(roi2)
+        
+        # Change 2: Loop through the detected colonies and add them to overlay
+        rois = roim.getRoisAsArray()
+        for r in rois:
+            r.setStrokeColor(Color.green) # Counted colonies are green
+            ol.add(r)
+        
+        imp_result.setOverlay(ol)
+        
+        # Change 3: Flatten the image so the colors are "burned in" to the saved PNG
+        final_imp = imp_result.flatten() 
+        IJ.saveAs(final_imp, "tif", path)
+        
+        imp_result.close()
+        final_imp.close()
+
     else:
-        pass
-        # print("There was a problem in analyzing", blobs)
+        print("There was a problem in analyzing")
 
     areas = table.getColumn(0)
-    # The number of colonies is len(areas)
 
     IJ.saveAs( imp, "png", path )
     imp.changes = False
@@ -448,3 +466,5 @@ for image_number in range (int(first_image), last_image + 1):
 WaitForUserDialog("Analysis complete!", "The analysis is complete. \n"
                "The results are saved in the output directory.\n"
                "ImageJ will now automatically close.").show()
+
+IJ.run("Quit")
