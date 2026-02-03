@@ -322,7 +322,7 @@ def count_colonies(imp, image_number, first_image,  Roi_flag, threshold_flag, th
         
         # Change 3: Flatten the image so the colors are "burned in" to the saved PNG
         final_imp = imp_result.flatten() 
-        IJ.saveAs(final_imp, "tif", path)
+        IJ.saveAs(final_imp, "jpg", path)
         
         imp_result.close()
         final_imp.close()
