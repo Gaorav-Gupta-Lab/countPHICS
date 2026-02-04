@@ -2,9 +2,14 @@ import sys
 from pathlib import Path
 from sys import platform
 from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, 
-                             QVBoxLayout, QWidget, QTextEdit, QMessageBox, QHBoxLayout)
+                             QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
+                             QFileDialog, QCheckBox, QSpinBox, QGroupBox, 
+                             QDoubleSpinBox, QLineEdit, QLabel)
+
 from PySide6.QtCore import QProcess, Qt
-from PySide6.QtGui import QFont, QTextCursor
+from PySide6.QtGui import QTextCursor
+
+# import json, tempfile
 
 # Custom QSS Styling
 STYLE_SHEET = """
@@ -98,6 +103,96 @@ class FijiRunnerGUI(QMainWindow):
         self.console.setPlaceholderText("System logs will appear here...")
         layout.addWidget(self.console)
 
+        # Input path
+        self.input_edit = QLineEdit()
+        self.input_edit.setPlaceholderText("Select first image…")
+        input_btn = QPushButton("Browse Image")
+        input_btn.clicked.connect(self.select_input_file)
+
+        row1 = QHBoxLayout()
+        row1.addWidget(QLabel("Input image:"))
+        row1.addWidget(self.input_edit)
+        row1.addWidget(input_btn)
+        layout.addLayout(row1)
+
+        # Output path
+        self.output_edit = QLineEdit()
+        self.output_edit.setPlaceholderText("Select output directory…")
+        output_btn = QPushButton("Browse Folder")
+        output_btn.clicked.connect(self.select_output_folder)
+
+        row2 = QHBoxLayout()
+        row2.addWidget(QLabel("Output folder:"))
+        row2.addWidget(self.output_edit)
+        row2.addWidget(output_btn)
+        layout.addLayout(row2)
+
+        # ---- General settings ----
+        general_box = QGroupBox("Analysis settings")
+        general_layout = QVBoxLayout()
+
+        self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
+        self.chk_same_roi = QCheckBox("Use same ROI for all images")
+        self.chk_six_well = QCheckBox("6-well plate analysis")
+        self.chk_advanced = QCheckBox("Enable advanced settings")
+
+        self.spin_last_image = QSpinBox()
+        self.spin_last_image.setMinimum(1)
+        self.spin_last_image.setMaximum(9999)
+        self.spin_last_image.setValue(1)
+        self.spin_last_image.setPrefix("Last image #: ")
+
+        general_layout.addWidget(self.chk_auto_thresh)
+        general_layout.addWidget(self.chk_same_roi)
+        general_layout.addWidget(self.chk_six_well)
+        general_layout.addWidget(self.chk_advanced)
+        general_layout.addWidget(self.spin_last_image)
+
+        general_box.setLayout(general_layout)
+        layout.addWidget(general_box)
+
+        # ---- Advanced settings ----
+        advanced_box = QGroupBox("Advanced parameters")
+        advanced_layout = QVBoxLayout()
+
+        self.spin_rolling = QSpinBox()
+        self.spin_rolling.setRange(1, 10000)
+        self.spin_rolling.setValue(35)
+        self.spin_rolling.setPrefix("Rolling ball: ")
+
+        self.spin_min_col = QSpinBox()
+        self.spin_min_col.setRange(1, 100000)
+        self.spin_min_col.setValue(100)
+        self.spin_min_col.setPrefix("Min colony size: ")
+
+        self.spin_max_col = QSpinBox()
+        self.spin_max_col.setRange(1, 1000000)
+        self.spin_max_col.setValue(10000)
+        self.spin_max_col.setPrefix("Max colony size: ")
+
+        self.spin_circ = QDoubleSpinBox()
+        self.spin_circ.setRange(0.0, 1.0)
+        self.spin_circ.setSingleStep(0.05)
+        self.spin_circ.setValue(0.5)
+        self.spin_circ.setPrefix("Circularity: ")
+
+        self.spin_sigma = QDoubleSpinBox()
+        self.spin_sigma.setRange(0.0, 100.0)
+        self.spin_sigma.setValue(2.0)
+        self.spin_sigma.setPrefix("Sigma: ")
+
+        advanced_layout.addWidget(self.spin_rolling)
+        advanced_layout.addWidget(self.spin_min_col)
+        advanced_layout.addWidget(self.spin_max_col)
+        advanced_layout.addWidget(self.spin_circ)
+        advanced_layout.addWidget(self.spin_sigma)
+
+        advanced_box.setLayout(advanced_layout)
+        advanced_box.setVisible(False)
+        layout.addWidget(advanced_box)
+
+        self.chk_advanced.toggled.connect(advanced_box.setVisible)
+
         # Button Row
         button_layout = QHBoxLayout()
         button_layout.setSpacing(10)
@@ -125,6 +220,17 @@ class FijiRunnerGUI(QMainWindow):
         layout.addLayout(button_layout)
         self.setCentralWidget(main_widget)
 
+    def select_input_file(self):
+        f, _ = QFileDialog.getOpenFileName(self, "Select First Image")
+        if f:
+            self.input_edit.setText(f)
+
+    def select_output_folder(self):
+        d = QFileDialog.getExistingDirectory(self, "Select Output Folder")
+        if d:
+            self.output_edit.setText(d)
+
+
     def get_command(self):
         current_dir = Path(__file__).parent.resolve()
         script_path = current_dir / "macro_moj.py"
@@ -145,17 +251,85 @@ class FijiRunnerGUI(QMainWindow):
         self.console.insertHtml(f"<span style='color: {color};'>{text}</span><br>")
         self.console.ensureCursorVisible()
 
-    def start_process(self):
+    def get_input_path(self):
+        text = self.input_edit.text().strip()
+        if not text:
+            self.log_to_console("ERROR: Input image path is required.", "red")
+            return None
+
+        path = Path(text).resolve()
+        if not path.exists():
+            self.log_to_console(f"ERROR: Input file does not exist: {path}", "red")
+            return None
+
+        return path
+    
+    def get_output_path(self, input_path):
+        text = self.output_edit.text().strip()
+
+        if text:
+            base = Path(text)
+        else:
+            base = input_path.parent
+            self.output_edit.setText(str(base))
+
+        output_path = (base / "countPHICS_output").resolve()
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        return output_path
+
+    def write_config(self, input_path, output_path):
+        config_path = output_path / "countPHICS_params.txt"
+
+        lines = [
+            "input=" + str(input_path),
+            "output=" + str(output_path),
+
+            "auto_threshold=" + str(self.chk_auto_thresh.isChecked()).lower(),
+            "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
+            "six_well=" + str(self.chk_six_well.isChecked()).lower(),
+            "advanced=" + str(self.chk_advanced.isChecked()).lower(),
+            "last_image=" + str(self.spin_last_image.value()),
+        ]
+
+        if self.chk_advanced.isChecked():
+            lines.extend([
+                "rolling_ball=" + str(self.spin_rolling.value()),
+                "min_colony=" + str(self.spin_min_col.value()),
+                "max_colony=" + str(self.spin_max_col.value()),
+                "circularity=" + str(self.spin_circ.value()),
+                "sigma=" + str(self.spin_sigma.value()),
+            ])
+
+        with open(config_path, "w") as f:
+            f.write("\n".join(lines))
+
+        self.log_to_console(f"Config written to {config_path}", "green")
+        return config_path
+
+    def launch_fiji(self):
         cmd_info = self.get_command()
-        if not cmd_info: return
+        if not cmd_info:
+            return
 
         executable, args = cmd_info
-        self.console.clear()
+
+        # self.console.clear()
         self.log_to_console("<b>INITIALIZING SUBSYSTEM...</b>", "#5fb3b3")
-        
+
         self.run_btn.setEnabled(False)
         self.cancel_btn.setEnabled(True)
         self.process.start(executable, args)
+
+    def start_process(self):
+        input_path = self.get_input_path()
+        if not input_path:
+            return
+
+        output_path = self.get_output_path(input_path)
+        self.write_config(input_path, output_path)
+
+        self.launch_fiji()
 
     def cancel_process(self):
         if self.process.state() == QProcess.Running:

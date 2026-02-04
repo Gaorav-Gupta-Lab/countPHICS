@@ -9,6 +9,7 @@ from ij.gui import (OvalRoi, TrimmedButton, NonBlockingGenericDialog, # type: ig
 from ij.io import OpenDialog, DirectoryChooser # type: ignore
 
 import os
+import sys
 
 import java.time # type: ignore
 from java.awt import Color # type: ignore
@@ -21,62 +22,69 @@ System.setProperty("scijava.log.level", "error")
 # Suppress the specific "WindowsPreferences" warning
 System.setProperty("java.util.prefs.PreferencesFactory", "java.util.prefs.WindowsPreferencesFactory")
 
-macro_version = '2.0.1'
-srcDir = False
-output_directory = False
+macro_version = '2.1.0'
 
-class MyListener (ActionListener):
-    def actionPerformed(self, event):
-        global od
-        od = OpenDialog("Select First Image", None)
-        global srcDir
-        srcDir = od.getDirectory()
+od = OpenDialog("Select countPHICS parameter file", None)
+param_dir = od.getDirectory()
+param_name = od.getFileName()
 
-class MyListener2 (ActionListener):
-    output_directory = False
-    def actionPerformed(self, event):
-        global od2
-        od2 = DirectoryChooser("Select Output Directory")
-        global output_directory
-        output_directory = od2.getDirectory()
+if param_dir is None or param_name is None:
+    IJ.log("No parameter file selected. Aborting.")
+    sys.exit()
 
-greet = NonBlockingGenericDialog("Colony Counter")
-greet.addMessage("Colony Counter is an ImageJ macro which counts the number and calculates sizes of colonies "
-                 "located in the given image.")
-greet.addMessage("Please press \"Select FIRST image\" to chose images and \"Select output directory\" "
-                 "to specify where to save data.")
-bt = TrimmedButton("Select FIRST image",10)
-bt.addActionListener(MyListener())
-greet.add(bt)
-bt2 = TrimmedButton("Select output directory",10)
-a = bt2.addActionListener(MyListener2())
-greet.add(bt2)
-greet.showDialog()
+param_path = os.path.join(param_dir, param_name)
 
-while 1<2:
-    if greet.wasOKed() and srcDir == False:
-        greet = NonBlockingGenericDialog("Colony Counter")
-        greet.addMessage("ERROR: Please select the image!")
-        greet.addMessage("Colony Counter is an ImageJ macro which counts the number and calculates sizes of the "
-                         "colonies located at the given image.")
-        greet.addMessage("Please press \"Select FIRST image\" to chose images and \"Select output directory\" "
-                         "to specify where to save data.")
-        bt = TrimmedButton("Select FIRST image",10)
-        bt.addActionListener(MyListener())
-        greet.add(bt)
-        bt2 = TrimmedButton("Select Output Directory",10)
-        bt2.addActionListener(MyListener2())
-        greet.add(bt2)
-        greet.showDialog()
-    else:
-        break
+if not os.path.exists(param_path):
+    IJ.log("Parameter file does not exist: " + param_path)
+    sys.exit()
 
-if greet.wasOKed() and output_directory == False:
-    output_directory = '../output_data'
-if output_directory is None:
-    output_directory = '../output_data'
 
-nazwa =  od.getFileName()
+def read_params(path):
+    params = {}
+    f = open(path, "r")
+    try:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            params[k.strip()] = v.strip()
+    finally:
+        f.close()
+    return params
+
+params = read_params(param_path)
+
+src_path = params.get("input")
+output_directory = params.get("output")
+
+if not src_path or not output_directory:
+    IJ.log("Missing required parameters (input/output). Aborting.")
+    sys.exit()
+
+def as_bool(v, default=False):
+    if v is None:
+        return default
+    return v.lower() in ("true", "1", "yes")
+
+
+# if not src_path or not output_directory:
+#     IJ.log("Parameter file missing required keys. Aborting.")
+#     sys.exit()
+
+# if not os.path.exists(src_path):
+#     IJ.log("Input image does not exist: " + src_path)
+#     sys.exit()
+
+# if not os.path.exists(output_directory):
+#     IJ.log("Output directory does not exist: " + output_directory)
+#     sys.exit()
+
+srcDir = os.path.dirname(src_path)
+nazwa = os.path.basename(src_path)
+
 
 if '_' in nazwa:
     idx = nazwa.find('_')
@@ -90,19 +98,17 @@ else:
     file_name = ''
     file_full = nazwa[idx2:]
 
-dia = NonBlockingGenericDialog("SETTINGS")
-dia.addMessage("Choose analysis parameters: ")
-dia.hideCancelButton()
-dia.addCheckbox('Automatic Threshold', False)
-dia.addCheckbox('Same ROI for all images', False)
-dia.addMessage("Choose image format (check if it's a 6-well plate image): ")
-dia.addCheckbox('6-well plate', False)
-dia.addMessage("Advanced settings, for manual parameters")
-dia.addCheckbox('Advanced settings', False)
-dia.addNumericField('Number of the LAST image to analyze:', int(first_image) , 0)
-dia.showDialog()
-checkboxes = [dia.getNextBoolean(), dia.getNextBoolean(),dia.getNextBoolean(), dia.getNextBoolean()]
-last_image = int(dia.getNextNumber())
+# dia = NonBlockingGenericDialog("SETTINGS")
+# dia.addMessage("Choose analysis parameters: ")
+# dia.hideCancelButton()
+# dia.addCheckbox('Automatic Threshold', False)
+# dia.addCheckbox('Same ROI for all images', False)
+# dia.addMessage("Choose image format (check if it's a 6-well plate image): ")
+# dia.addCheckbox('6-well plate', False)
+# dia.addMessage("Advanced settings, for manual parameters")
+# dia.addCheckbox('Advanced settings', False)
+# dia.addNumericField('Number of the LAST image to analyze:', int(first_image) , 0)
+# dia.showDialog()
 
 path_1 = str(int(first_image)) + file_full
 path = os.path.join(srcDir, path_1)
@@ -111,13 +117,6 @@ cal =  imp.getCalibration()
 x = cal.pixelWidth
 units = cal.getUnit()
 units_known = True
-
-if checkboxes[2]:
-    w = imp.getWidth()/2
-    h = imp.getHeight()/3
-else:
-    w = imp.getWidth()
-    h = imp.getHeight()
 
 if units == 'mm':
     dpi = 1.0 / (x / 254.0)
@@ -128,43 +127,88 @@ elif units == 'inch':
 else:
     units_known = False
 
-if checkboxes[3]:
-    dia_a = NonBlockingGenericDialog("ADVANCED SETTINGS")
-    dia_a.addMessage("These parameters are automatically set by default. \n "
-                     "If you want to change them it is recommended to read Instruction.pdf first.")
-    dia_a.addNumericField('Rolling ball radius:', int(w*0.0306) , 0)
-    dia_a.addNumericField('Minimum colony size:', int(0.01*w), 0)
-    dia_a.addNumericField('Maximum colony size:', int(w), 0)
-    dia_a.addNumericField('Circularity:', float(0.5), 0 )
+# last_image = int(dia.getNextNumber())
+threshold_flag      = as_bool(params.get("auto_threshold"), False)
+same_roi_flag       = as_bool(params.get("same_roi"), False)
+six_well_flag       = as_bool(params.get("six_well"), False)
+advanced_flag       = as_bool(params.get("advanced"), False)
 
-    if not units_known:
-        dia_a.addNumericField('Sigma:', int(0.001*w), 0 )
-    else:
-        dia_a.addNumericField('Sigma:', int(( 1.9*10**(-6))*dpi**2 + (6.3*10**(-4))*dpi + 1.3 ), 0 )
+last_image = int(params.get("last_image", first_image))
 
-    dia_a.showDialog()
-    values = [dia_a.getNextNumber(), dia_a.getNextNumber(), dia_a.getNextNumber(),  dia_a.getNextNumber(), dia_a.getNextNumber()]
-    rolling_ball = values[0]
-    minimum_col = values[1]
-    maximum_col = values[2]
-    circ = values[3]
-    sigma = values[4]
-
+if six_well_flag:
+    w = imp.getWidth()/2
+    h = imp.getHeight()/3
 else:
-    rolling_ball = int(w*0.0306)
-    minimum_col = int(0.01*w)
-    maximum_col = int(w)
-    circ = 0.5
+    w = imp.getWidth()
+    h = imp.getHeight()
+
+if advanced_flag:
+    rolling_ball = int(params.get("rolling_ball", int(w * 0.0306)))
+    minimum_col  = int(params.get("min_colony", int(0.01 * w)))
+    maximum_col  = int(params.get("max_colony", int(w)))
+    circ         = float(params.get("circularity", 0.5))
+
     if not units_known:
-        sigma = 0.001 * w
+        sigma = float(params.get("sigma", 0.001 * w))
     else:
-        sigma = ( 1.9*10**(-6))*dpi**2 + (6.3*10**(-4))*dpi + 1.3
+        sigma = float(params.get(
+            "sigma",
+            (1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3
+        ))
+else:
+    # defaults (your existing logic)
+    rolling_ball = int(w * 0.0306)
+    minimum_col  = int(0.01 * w)
+    maximum_col  = int(w)
+    circ         = 0.5
+    sigma = 0.001 * w if not units_known else (
+        (1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3
+    )
+
+checkboxes = [threshold_flag, same_roi_flag, six_well_flag, advanced_flag]
+
+
+
+
+# if checkboxes[3]:
+#     dia_a = NonBlockingGenericDialog("ADVANCED SETTINGS")
+#     dia_a.addMessage("These parameters are automatically set by default. \n "
+#                      "If you want to change them it is recommended to read Instruction.pdf first.")
+#     dia_a.addNumericField('Rolling ball radius:', int(w*0.0306) , 0)
+#     dia_a.addNumericField('Minimum colony size:', int(0.01*w), 0)
+#     dia_a.addNumericField('Maximum colony size:', int(w), 0)
+#     dia_a.addNumericField('Circularity:', float(0.5), 0 )
+
+#     if not units_known:
+#         dia_a.addNumericField('Sigma:', int(0.001*w), 0 )
+#     else:
+#         dia_a.addNumericField('Sigma:', int(( 1.9*10**(-6))*dpi**2 + (6.3*10**(-4))*dpi + 1.3 ), 0 )
+
+#     dia_a.showDialog()
+#     values = [dia_a.getNextNumber(), dia_a.getNextNumber(), dia_a.getNextNumber(),  dia_a.getNextNumber(), dia_a.getNextNumber()]
+#     rolling_ball = values[0]
+#     minimum_col = values[1]
+#     maximum_col = values[2]
+#     circ = values[3]
+#     sigma = values[4]
+
+# else:
+#     rolling_ball = int(w*0.0306)
+#     minimum_col = int(0.01*w)
+#     maximum_col = int(w)
+#     circ = 0.5
+#     if not units_known:
+#         sigma = 0.001 * w
+#     else:
+#         sigma = ( 1.9*10**(-6))*dpi**2 + (6.3*10**(-4))*dpi + 1.3
 
 checkbox_values = ("Automatic Threshold: " + str(checkboxes[0]) + "\nSame ROI for all images: " + str(checkboxes[1]) +
       "\n6-well plate format: " + str(checkboxes[2]) + "\nRolling ball radius: " + str(rolling_ball) +
       "\nMinimum colony size: " + str(minimum_col) + "\nMaximum colony size: " + str(maximum_col) + "\nCircularity: " + str(circ) + "\n")
 
 print(checkbox_values)
+print("Checkboxes RAW: " + str(checkboxes))
+
 
 def count_colonies(imp, image_number, first_image,  Roi_flag, threshold_flag, thres_iteration_flag, path,
                     roi_def = OvalRoi(69, 92, 646, 651)):
