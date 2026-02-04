@@ -20,7 +20,7 @@ QMainWindow {
 
 QWidget {
     color: #e6e6e6;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 /* --- Title label --- */
@@ -28,11 +28,6 @@ QLabel#title {
     font-size: 20px;
     font-weight: 700;
     color: #f0f0f0;
-}
-
-QLabel#subtitle {
-    font-size: 12px;
-    color: #b7bcc5;
 }
 
 /* --- Cards / group boxes --- */
@@ -58,7 +53,7 @@ QLineEdit, QSpinBox, QDoubleSpinBox {
     background-color: #1c1f24;
     border: 1px solid #3a3f47;
     border-radius: 8px;
-    padding: 8px 10px;
+    padding: 6px 12px;
     color: #e6e6e6;
 }
 
@@ -80,14 +75,14 @@ QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
 
 /* --- Checkboxes --- */
 QCheckBox {
-    spacing: 10px;
-    padding: 2px 0;
+    spacing: 6px;
+    padding: 1px 0;
     color: #dfe4ea;
 }
 
 QCheckBox::indicator {
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
     border-radius: 4px;
     border: 1px solid #5b616c;
     background-color: #1c1f24;
@@ -95,7 +90,7 @@ QCheckBox::indicator {
 
 QCheckBox::indicator:checked {
     background-color: #5fb3b3;
-    border: 1px solid #5fb3b3;
+    border: 1px solid #2a2a75;
 }
 
 /* --- Console --- */
@@ -170,13 +165,13 @@ QPushButton#exit_btn:pressed { background-color: #2f333a; }
 
 /* Smaller “browse” buttons */
 QPushButton#browse_btn {
-    padding: 8px 12px;
+    padding: 6px 6px;
     font-weight: 600;
-    background-color: #3c4048;
+    background-color: #5fb3b3;
     border: 1px solid #515763;
 }
 
-QPushButton#browse_btn:hover { background-color: #515763; }
+QPushButton#browse_btn:hover { background-color: #316363; }
 QPushButton#browse_btn:pressed { background-color: #2f333a; }
 """
 
@@ -209,25 +204,27 @@ class FijiRunnerGUI(QMainWindow):
         # Input path
         self.input_edit = QLineEdit()
         self.input_edit.setPlaceholderText("Select first image…")
-        input_btn = QPushButton("Browse Image")
-        input_btn.clicked.connect(self.select_input_file)
+        self.input_btn = QPushButton("Browse Input")
+        self.input_btn.setObjectName("browse_btn")
+        self.input_btn.clicked.connect(self.select_input_file)
 
         row1 = QHBoxLayout()
         row1.addWidget(QLabel("Input image:"))
         row1.addWidget(self.input_edit)
-        row1.addWidget(input_btn)
+        row1.addWidget(self.input_btn)
         layout.addLayout(row1)
 
         # Output path
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Select output directory… (will default to input image folder if left blank)")
-        output_btn = QPushButton("Browse Folder")
-        output_btn.clicked.connect(self.select_output_folder)
+        self.output_btn = QPushButton("Browse Output")
+        self.output_btn.setObjectName("browse_btn")
+        self.output_btn.clicked.connect(self.select_output_folder)
 
         row2 = QHBoxLayout()
         row2.addWidget(QLabel("Output folder:"))
         row2.addWidget(self.output_edit)
-        row2.addWidget(output_btn)
+        row2.addWidget(self.output_btn)
         layout.addLayout(row2)
 
         # ---- General settings ----
@@ -239,17 +236,10 @@ class FijiRunnerGUI(QMainWindow):
         self.chk_six_well = QCheckBox("6-well plate analysis")
         self.chk_advanced = QCheckBox("Show advanced settings")
 
-        # self.spin_last_image = QSpinBox()
-        # self.spin_last_image.setMinimum(1)
-        # self.spin_last_image.setMaximum(9999)
-        # self.spin_last_image.setValue(1)
-        # self.spin_last_image.setPrefix("Last image #: ")
-
         general_layout.addWidget(self.chk_auto_thresh)
         general_layout.addWidget(self.chk_same_roi)
         general_layout.addWidget(self.chk_six_well)
         general_layout.addWidget(self.chk_advanced)
-        # general_layout.addWidget(self.spin_last_image)
 
         general_box.setLayout(general_layout)
         layout.addWidget(general_box)
