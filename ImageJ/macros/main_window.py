@@ -285,12 +285,21 @@ class FijiRunnerGUI(QMainWindow):
             "input=" + str(input_path),
             "output=" + str(output_path),
 
+
             "auto_threshold=" + str(self.chk_auto_thresh.isChecked()).lower(),
             "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
             "six_well=" + str(self.chk_six_well.isChecked()).lower(),
             "advanced=" + str(self.chk_advanced.isChecked()).lower(),
             "last_image=" + str(self.spin_last_image.value()),
         ]
+        
+        image_files = [
+            str(file)
+            for file in input_path.parent.iterdir()
+            if file.suffix.lower() in [".tif", ".tiff"]
+        ]
+
+        lines.append("images=" + ";".join(image_files))
 
         if self.chk_advanced.isChecked():
             lines.extend([
