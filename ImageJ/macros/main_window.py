@@ -13,68 +13,171 @@ from PySide6.QtGui import QTextCursor
 
 # Custom QSS Styling
 STYLE_SHEET = """
+/* --- App base --- */
 QMainWindow {
-    background-color: #2b2b2b;
+    background-color: #23262b;
 }
 
-QTextEdit {
-    background-color: #121212;
-    color: #a9b7c6;
-    border: 1px solid #323232;
-    border-radius: 4px;
-    padding: 10px;
-    font-family: 'Consolas', 'Monaco', monospace;
+QWidget {
+    color: #e6e6e6;
     font-size: 13px;
 }
 
-QPushButton {
-    font-weight: bold;
-    font-size: 14px;
-    padding: 10px 20px;
-    border-radius: 6px;
-    color: white;
+/* --- Title label --- */
+QLabel#title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f0f0f0;
 }
 
+QLabel#subtitle {
+    font-size: 12px;
+    color: #b7bcc5;
+}
+
+/* --- Cards / group boxes --- */
+QGroupBox {
+    background-color: #2b2f36;
+    border: 1px solid #3a3f47;
+    border-radius: 10px;
+    margin-top: 12px;
+    padding: 12px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 8px;
+    margin-left: 10px;
+    color: #dfe4ea;
+    font-weight: 600;
+}
+
+/* --- Inputs --- */
+QLineEdit, QSpinBox, QDoubleSpinBox {
+    background-color: #1c1f24;
+    border: 1px solid #3a3f47;
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: #e6e6e6;
+}
+
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+    border: 1px solid #5fb3b3;
+}
+
+QLineEdit::placeholder {
+    color: #8e96a3;
+}
+
+/* Make spinboxes look cleaner */
+QSpinBox::up-button, QSpinBox::down-button,
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+    width: 16px;
+    border: none;
+    background: transparent;
+}
+
+/* --- Checkboxes --- */
+QCheckBox {
+    spacing: 10px;
+    padding: 2px 0;
+    color: #dfe4ea;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid #5b616c;
+    background-color: #1c1f24;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #5fb3b3;
+    border: 1px solid #5fb3b3;
+}
+
+/* --- Console --- */
+QTextEdit {
+    background-color: #111316;
+    color: #cbd5e1;
+    border: 1px solid #3a3f47;
+    border-radius: 10px;
+    padding: 10px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+}
+
+QTextEdit:focus {
+    border: 1px solid #5fb3b3;
+}
+
+/* --- Buttons --- */
+QPushButton {
+    font-weight: 700;
+    font-size: 13px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    color: white;
+    border: 1px solid transparent;
+}
+
+QPushButton:hover {
+    opacity: 0.95;
+}
+
+QPushButton:pressed {
+    opacity: 0.88;
+}
+
+/* Primary */
 QPushButton#run_btn {
     background-color: #2d8a4e;
     border: 1px solid #3eaf68;
 }
 
-QPushButton#run_btn:hover {
-    background-color: #3eaf68;
-}
-
-QPushButton#run_btn:pressed {
-    background-color: #246d3e;
-}
-
+QPushButton#run_btn:hover { background-color: #39a760; }
+QPushButton#run_btn:pressed { background-color: #257242; }
 QPushButton#run_btn:disabled {
-    background-color: #3c413e;
-    color: #7d7d7d;
+    background-color: #39413d;
+    border: 1px solid #39413d;
+    color: #8a8f96;
 }
 
+/* Danger */
 QPushButton#cancel_btn {
     background-color: #b33a3a;
     border: 1px solid #d44c4c;
 }
 
-QPushButton#cancel_btn:hover {
-    background-color: #d44c4c;
-}
-
+QPushButton#cancel_btn:hover { background-color: #d44c4c; }
+QPushButton#cancel_btn:pressed { background-color: #952f2f; }
 QPushButton#cancel_btn:disabled {
-    background-color: #4a3232;
-    color: #7d7d7d;
+    background-color: #3e2f2f;
+    border: 1px solid #3e2f2f;
+    color: #8a8f96;
 }
 
+/* Neutral */
 QPushButton#exit_btn {
-    background-color: #555555;
-    border: 1px solid #777777;
+    background-color: #3c4048;
+    border: 1px solid #515763;
 }
 
-QPushButton#exit_btn:hover {
-    background-color: #777777;
+QPushButton#exit_btn:hover { background-color: #515763; }
+QPushButton#exit_btn:pressed { background-color: #2f333a; }
+
+/* Smaller “browse” buttons */
+QPushButton#browse_btn {
+    padding: 8px 12px;
+    font-weight: 600;
+    background-color: #3c4048;
+    border: 1px solid #515763;
 }
+
+QPushButton#browse_btn:hover { background-color: #515763; }
+QPushButton#browse_btn:pressed { background-color: #2f333a; }
 """
 
 class FijiRunnerGUI(QMainWindow):
@@ -128,31 +231,31 @@ class FijiRunnerGUI(QMainWindow):
         layout.addLayout(row2)
 
         # ---- General settings ----
-        general_box = QGroupBox("Analysis settings")
+        general_box = QGroupBox("General settings")
         general_layout = QVBoxLayout()
 
         self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
-        self.chk_same_roi = QCheckBox("Use same ROI for all images")
+        self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
         self.chk_six_well = QCheckBox("6-well plate analysis")
-        self.chk_advanced = QCheckBox("Enable advanced settings")
+        self.chk_advanced = QCheckBox("Show advanced settings")
 
-        self.spin_last_image = QSpinBox()
-        self.spin_last_image.setMinimum(1)
-        self.spin_last_image.setMaximum(9999)
-        self.spin_last_image.setValue(1)
-        self.spin_last_image.setPrefix("Last image #: ")
+        # self.spin_last_image = QSpinBox()
+        # self.spin_last_image.setMinimum(1)
+        # self.spin_last_image.setMaximum(9999)
+        # self.spin_last_image.setValue(1)
+        # self.spin_last_image.setPrefix("Last image #: ")
 
         general_layout.addWidget(self.chk_auto_thresh)
         general_layout.addWidget(self.chk_same_roi)
         general_layout.addWidget(self.chk_six_well)
         general_layout.addWidget(self.chk_advanced)
-        general_layout.addWidget(self.spin_last_image)
+        # general_layout.addWidget(self.spin_last_image)
 
         general_box.setLayout(general_layout)
         layout.addWidget(general_box)
 
         # ---- Advanced settings ----
-        advanced_box = QGroupBox("Advanced parameters")
+        advanced_box = QGroupBox("Advanced Settings")
         advanced_layout = QVBoxLayout()
 
         self.spin_rolling = QSpinBox()
@@ -290,9 +393,9 @@ class FijiRunnerGUI(QMainWindow):
             "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
             "six_well=" + str(self.chk_six_well.isChecked()).lower(),
             "advanced=" + str(self.chk_advanced.isChecked()).lower(),
-            "last_image=" + str(self.spin_last_image.value()),
+            # "last_image=" + str(self.spin_last_image.value()),
         ]
-        
+
         image_files = [
             str(file)
             for file in input_path.parent.iterdir()
