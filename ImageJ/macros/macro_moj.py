@@ -16,12 +16,6 @@ from java.awt import Color # type: ignore
 from java.awt.event import ActionListener # type: ignore
 from java.lang import System # type: ignore
 
-# Suppress SciJava/ImageJ2 internal logging noise
-System.setProperty("scijava.log.level", "error")
-
-# Suppress the specific "WindowsPreferences" warning
-System.setProperty("java.util.prefs.PreferencesFactory", "java.util.prefs.WindowsPreferencesFactory")
-
 macro_version = '2.1.0'
 
 od = OpenDialog("Select countPHICS parameter file", None)
@@ -64,27 +58,11 @@ if not src_path or not output_directory:
     IJ.log("Missing required parameters (input/output). Aborting.")
     sys.exit()
 
-def as_bool(v, default=False):
-    if v is None:
-        return default
-    return v.lower() in ("true", "1", "yes")
-
-
-# if not src_path or not output_directory:
-#     IJ.log("Parameter file missing required keys. Aborting.")
-#     sys.exit()
-
-# if not os.path.exists(src_path):
-#     IJ.log("Input image does not exist: " + src_path)
-#     sys.exit()
-
-# if not os.path.exists(output_directory):
-#     IJ.log("Output directory does not exist: " + output_directory)
-#     sys.exit()
+def as_bool(v):
+    return v == 'true'
 
 srcDir = os.path.dirname(src_path)
 nazwa = os.path.basename(src_path)
-
 
 if '_' in nazwa:
     idx = nazwa.find('_')
@@ -97,18 +75,6 @@ else:
     first_image = nazwa[:idx2]
     file_name = ''
     file_full = nazwa[idx2:]
-
-# dia = NonBlockingGenericDialog("SETTINGS")
-# dia.addMessage("Choose analysis parameters: ")
-# dia.hideCancelButton()
-# dia.addCheckbox('Automatic Threshold', False)
-# dia.addCheckbox('Same ROI for all images', False)
-# dia.addMessage("Choose image format (check if it's a 6-well plate image): ")
-# dia.addCheckbox('6-well plate', False)
-# dia.addMessage("Advanced settings, for manual parameters")
-# dia.addCheckbox('Advanced settings', False)
-# dia.addNumericField('Number of the LAST image to analyze:', int(first_image) , 0)
-# dia.showDialog()
 
 path_1 = str(int(first_image)) + file_full
 path = os.path.join(srcDir, path_1)
@@ -127,11 +93,10 @@ elif units == 'inch':
 else:
     units_known = False
 
-# last_image = int(dia.getNextNumber())
-threshold_flag      = as_bool(params.get("auto_threshold"), False)
-same_roi_flag       = as_bool(params.get("same_roi"), False)
-six_well_flag       = as_bool(params.get("six_well"), False)
-advanced_flag       = as_bool(params.get("advanced"), False)
+threshold_flag = as_bool(params.get("auto_threshold"))
+same_roi_flag = as_bool(params.get("same_roi"))
+six_well_flag = as_bool(params.get("six_well"))
+advanced_flag = as_bool(params.get("advanced"))
 
 last_image = int(params.get("last_image", first_image))
 
@@ -156,7 +121,7 @@ if advanced_flag:
             (1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3
         ))
 else:
-    # defaults (your existing logic)
+    # defaults
     rolling_ball = int(w * 0.0306)
     minimum_col  = int(0.01 * w)
     maximum_col  = int(w)
@@ -165,60 +130,16 @@ else:
         (1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3
     )
 
-checkboxes = [threshold_flag, same_roi_flag, six_well_flag, advanced_flag]
+# checkboxes = [threshold_flag, same_roi_flag, six_well_flag, advanced_flag]
 
+# checkbox_values = ("Automatic Threshold: " + str(checkboxes[0]) + "\nSame ROI for all images: " + str(checkboxes[1]) +
+#       "\n6-well plate format: " + str(checkboxes[2]) + "\nRolling ball radius: " + str(rolling_ball) +
+#       "\nMinimum colony size: " + str(minimum_col) + "\nMaximum colony size: " + str(maximum_col) + "\nCircularity: " + str(circ) + "\n")
 
-
-
-# if checkboxes[3]:
-#     dia_a = NonBlockingGenericDialog("ADVANCED SETTINGS")
-#     dia_a.addMessage("These parameters are automatically set by default. \n "
-#                      "If you want to change them it is recommended to read Instruction.pdf first.")
-#     dia_a.addNumericField('Rolling ball radius:', int(w*0.0306) , 0)
-#     dia_a.addNumericField('Minimum colony size:', int(0.01*w), 0)
-#     dia_a.addNumericField('Maximum colony size:', int(w), 0)
-#     dia_a.addNumericField('Circularity:', float(0.5), 0 )
-
-#     if not units_known:
-#         dia_a.addNumericField('Sigma:', int(0.001*w), 0 )
-#     else:
-#         dia_a.addNumericField('Sigma:', int(( 1.9*10**(-6))*dpi**2 + (6.3*10**(-4))*dpi + 1.3 ), 0 )
-
-#     dia_a.showDialog()
-#     values = [dia_a.getNextNumber(), dia_a.getNextNumber(), dia_a.getNextNumber(),  dia_a.getNextNumber(), dia_a.getNextNumber()]
-#     rolling_ball = values[0]
-#     minimum_col = values[1]
-#     maximum_col = values[2]
-#     circ = values[3]
-#     sigma = values[4]
-
-# else:
-#     rolling_ball = int(w*0.0306)
-#     minimum_col = int(0.01*w)
-#     maximum_col = int(w)
-#     circ = 0.5
-#     if not units_known:
-#         sigma = 0.001 * w
-#     else:
-#         sigma = ( 1.9*10**(-6))*dpi**2 + (6.3*10**(-4))*dpi + 1.3
-
-checkbox_values = ("Automatic Threshold: " + str(checkboxes[0]) + "\nSame ROI for all images: " + str(checkboxes[1]) +
-      "\n6-well plate format: " + str(checkboxes[2]) + "\nRolling ball radius: " + str(rolling_ball) +
-      "\nMinimum colony size: " + str(minimum_col) + "\nMaximum colony size: " + str(maximum_col) + "\nCircularity: " + str(circ) + "\n")
-
-print(checkbox_values)
-print("Checkboxes RAW: " + str(checkboxes))
-
+# print(checkbox_values)
 
 def count_colonies(imp, image_number, first_image,  Roi_flag, threshold_flag, thres_iteration_flag, path,
                     roi_def = OvalRoi(69, 92, 646, 651)):
-
-    w = imp.getWidth()
-    h = imp.getHeight()
-    cal =  imp.getCalibration()
-#	x = cal.pixelWidth
-#	y = cal.pixelHeight
-    units = cal.getUnit()
 
     splitter = RGBStackSplitter()
     splitter.split(imp.getStack(), True)
@@ -249,7 +170,7 @@ def count_colonies(imp, image_number, first_image,  Roi_flag, threshold_flag, th
 
     imp.getProcessor().blurGaussian(sigma)
     BackgroundSubtracter().subtractBackround(imp.getProcessor(), int(rolling_ball))
-    #0.0306 is the const value calculated based on many picturies analysis.
+    #0.0306 is the const value calculated based on prior analyses.
 
     def ROI_manager():
         IJ.run("Roi Defaults...", "color=orange stroke=3.0 group=0");
@@ -390,7 +311,7 @@ for image_number in range (int(first_image), last_image + 1):
     imp = IJ.openImage(path)
     iteration = 1
 
-    if checkboxes[2]:
+    if six_well_flag:
         print("6-well plate format")
         w = imp.getWidth()
         h = imp.getHeight()
@@ -403,12 +324,12 @@ for image_number in range (int(first_image), last_image + 1):
                 path_1 = str(image_number)+ '_' + str(img_number) + file_name + '.txt'
                 path = os.path.join(output_directory, path_1)
                 if img_number > 1:
-                    a = count_colonies( imp2, img_number , 1, checkboxes[1], checkboxes[0], thresh_flag_score ,
+                    a = count_colonies( imp2, img_number , 1, same_roi_flag, threshold_flag, thresh_flag_score ,
                                         path, a[1] )
                 elif img_number == 1 and iteration == 1:
-                    a = count_colonies( imp2, img_number , 1, checkboxes[1], checkboxes[0], thresh_flag_score, path )
+                    a = count_colonies( imp2, img_number , 1, same_roi_flag, threshold_flag, thresh_flag_score, path )
                 else:
-                    a = count_colonies( imp2, img_number , 1, checkboxes[1], checkboxes[0], thresh_flag_score, path )
+                    a = count_colonies( imp2, img_number , 1, same_roi_flag, threshold_flag, thresh_flag_score, path )
 
                 f = open (path, 'w')
                 if (a[0] == None):
@@ -452,9 +373,9 @@ for image_number in range (int(first_image), last_image + 1):
         path_1 = str(image_number) + file_name +  '.txt'
         path = os.path.join(output_directory, path_1)
         if iteration == 1:
-            a = count_colonies( imp, image_number, first_image, checkboxes[1], checkboxes[0], thresh_flag_score, path)
+            a = count_colonies( imp, image_number, first_image, same_roi_flag, threshold_flag, thresh_flag_score, path)
         else:
-            a = count_colonies( imp, image_number, first_image, checkboxes[1], checkboxes[0], thresh_flag_score, path)
+            a = count_colonies( imp, image_number, first_image, same_roi_flag, threshold_flag, thresh_flag_score, path)
 
         f = open (path, 'w')
         if a[0] is None:
@@ -500,7 +421,7 @@ for image_number in range (int(first_image), last_image + 1):
             min_threshold = 'Minimum Threshold: ' + str(thres_min) + '\n'
             max_threshold = 'Maximum Threshold: ' + str(thres_max) + '\n'
             timeNow = 'countPHICS v' + macro_version + ' run: '+ str(java.time.Instant.now()) + '\n'
-            header = (timeNow + checkbox_values +
+            header = (timeNow +
                       '\nImage\tNumber of colonies\tMin Threshold\tMax Threshold\tImage ROI\n')
 
             f.write(header)

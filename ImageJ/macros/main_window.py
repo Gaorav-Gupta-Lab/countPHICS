@@ -81,7 +81,7 @@ class FijiRunnerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Colony Counter Interface")
-        self.resize(700, 500)
+        self.resize(900, 600)
         self.setStyleSheet(STYLE_SHEET)
 
         self.process = QProcess(self)
@@ -117,7 +117,7 @@ class FijiRunnerGUI(QMainWindow):
 
         # Output path
         self.output_edit = QLineEdit()
-        self.output_edit.setPlaceholderText("Select output directory…")
+        self.output_edit.setPlaceholderText("Select output directory… (will default to input image folder if left blank)")
         output_btn = QPushButton("Browse Folder")
         output_btn.clicked.connect(self.select_output_folder)
 
