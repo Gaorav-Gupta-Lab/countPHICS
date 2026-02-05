@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 from sys import platform
+import datetime
+
 from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, 
                              QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
                              QFileDialog, QCheckBox, QSpinBox, QGroupBox, 
@@ -393,7 +395,8 @@ class FijiRunnerGUI(QMainWindow):
 
     def log_to_console(self, text, color="#a9b7c6"):
         self.console.moveCursor(QTextCursor.End)
-        self.console.insertHtml(f"<span style='color: {color};'>{text}</span><br>")
+        # always precede printed line with datetime stamp
+        self.console.insertHtml(f"<span style='color: {color};'>[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {text}</span><br>")
         self.console.ensureCursorVisible()
 
     def get_input_path(self):
