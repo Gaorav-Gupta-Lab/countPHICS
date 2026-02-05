@@ -137,7 +137,7 @@ def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres
     green.setCalibration(cal)
     blue.setCalibration(cal)
 
-    # Auto-select best channel based on contrast (StdDev)
+    # Auto-select best channel based on contrast (StdDev), virtually always green
     roi_chk = OvalRoi(w/4, h/4, w/2, h/2)
     red.setRoi(roi_chk); green.setRoi(roi_chk); blue.setRoi(roi_chk)
     
@@ -186,7 +186,7 @@ def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres
             roi_def = roi2
         else:
             proc_imp.setRoi(roi2)
-            proc_imp.show() # Optional: Show if you want to watch it work
+            proc_imp.show() # breaks without this for some reason
     else:
         roi2 = ROI_manager()
 
@@ -228,14 +228,8 @@ def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres
                          float(maximum_col), float(circ), 1.0)
     
     if pa.analyze(proc_imp):
-        # Re-open original for overlay
+        # Re-open original for overlay, not necessary?
         imp_result = IJ.openImage(original_path)
-        
-        # If this was a 6-well crop, we need to crop the result image too to match coordinates
-        # However, typically we just save the cropped result.
-        # Since 'imp' passed in might be a Crop, 'imp_result' here is the FULL original.
-        # If 6-well, we should really just overlay on the processed image or handle cropping again.
-        # SIMPLIFICATION: Overlay on the processed image (converted to RGB) to save complex cropping logic
         
         roi2.setStrokeColor(Color.orange)
         roi2.setStrokeWidth(3)
@@ -244,13 +238,7 @@ def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres
         for r in roim.getRoisAsArray():
             r.setStrokeColor(Color.green)
             ol.add(r)
-        
-        # We overlay on the ORIGINAL cropped section if possible, otherwise use processed
-        # To avoid re-opening logic complexity for 6-well, we use the processed image for visual proof
-        # or we assume 'original_path' is only valid for full images.
-        
-        # FIX: For 6-well, just flatten the processing image (binary mask) or the one we just worked on.
-        # Better visual: Overlay on the RGB split channel we selected.
+
         proc_imp.setOverlay(ol)
         final_imp = proc_imp.flatten()
         
@@ -334,7 +322,7 @@ for i, img_path in enumerate(all_images):
                 if is_first_well:
                     f_sum.write("Image\tWell\tCount\tMinThresh\tMaxThresh\n")
                 
-                # Safe threshold retrieval
+                # Threshold retrieval
                 t_min = globals().get('thres_min', 0)
                 t_max = globals().get('thres_max', 0)
                     

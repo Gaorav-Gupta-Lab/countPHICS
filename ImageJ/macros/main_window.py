@@ -4,7 +4,7 @@ from sys import platform
 from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, 
                              QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
                              QFileDialog, QCheckBox, QSpinBox, QGroupBox, 
-                             QDoubleSpinBox, QLineEdit, QLabel)
+                             QDoubleSpinBox, QLineEdit, QLabel, QGridLayout)
 
 from PySide6.QtCore import QProcess, Qt
 from PySide6.QtGui import QTextCursor
@@ -37,15 +37,15 @@ QGroupBox {
     border-radius: 10px;
     margin-top: 12px;
     padding: 12px;
+    font: bold;
+    color: #5fb3b3;
 }
 
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 0 8px;
-    margin-left: 10px;
-    color: #dfe4ea;
-    font-weight: 600;
+    margin-left: 2px;
 }
 
 /* --- Inputs --- */
@@ -81,16 +81,24 @@ QCheckBox {
 }
 
 QCheckBox::indicator {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 4px;
     border: 1px solid #5b616c;
     background-color: #1c1f24;
 }
 
+QCheckBox::indicator:hover {
+    border: 1px solid #7faeb3;
+}
+
 QCheckBox::indicator:checked {
     background-color: #5fb3b3;
-    border: 1px solid #2a2a75;
+    border: 1px solid #5fb3b3;
+}
+
+QCheckBox::indicator:checked:hover {
+    background-color: #6fd0d0;
 }
 
 /* --- Console --- */
@@ -167,19 +175,23 @@ QPushButton#exit_btn:pressed { background-color: #2f333a; }
 QPushButton#browse_btn {
     padding: 6px 6px;
     font-weight: 600;
-    background-color: #5fb3b3;
+    background-color: #357575;
     border: 1px solid #515763;
+    min-width: 90px;
+    max-width: 95px;
+    min-height: 20px;
+    
 }
 
 QPushButton#browse_btn:hover { background-color: #316363; }
-QPushButton#browse_btn:pressed { background-color: #2f333a; }
+QPushButton#browse_btn:pressed { background-color: #3f434a; }
 """
 
 class FijiRunnerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Colony Counter Interface")
-        self.resize(900, 600)
+        self.resize(1000, 800)
         self.setStyleSheet(STYLE_SHEET)
 
         self.process = QProcess(self)
@@ -234,7 +246,7 @@ class FijiRunnerGUI(QMainWindow):
         self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
         self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
         self.chk_six_well = QCheckBox("6-well plate analysis")
-        self.chk_advanced = QCheckBox("Show advanced settings")
+        self.chk_advanced = QCheckBox("Enable advanced settings")
 
         general_layout.addWidget(self.chk_auto_thresh)
         general_layout.addWidget(self.chk_same_roi)
@@ -246,39 +258,79 @@ class FijiRunnerGUI(QMainWindow):
 
         # ---- Advanced settings ----
         advanced_box = QGroupBox("Advanced Settings")
-        advanced_layout = QVBoxLayout()
+        advanced_layout = QGridLayout()
+
+        # advanced_layout.setHorizontalSpacing(28)  # space between left/right parameter groups
+        # advanced_layout.setVerticalSpacing(16)    # space between rows
+        # advanced_layout.setContentsMargins(12, 14, 12, 10)
 
         self.spin_rolling = QSpinBox()
         self.spin_rolling.setRange(1, 10000)
         self.spin_rolling.setValue(35)
-        self.spin_rolling.setPrefix("Rolling ball: ")
+        # self.spin_rolling.setPrefix("Rolling ball: ")
+        label_rolling_radius = QLabel("Rolling Ball Radius:")
 
         self.spin_min_col = QSpinBox()
         self.spin_min_col.setRange(1, 100000)
         self.spin_min_col.setValue(100)
-        self.spin_min_col.setPrefix("Min colony size: ")
+        # self.spin_min_col.setPrefix("Min colony size: ")
+        label_min_col_size = QLabel("Min Colony Size:")
 
         self.spin_max_col = QSpinBox()
         self.spin_max_col.setRange(1, 1000000)
         self.spin_max_col.setValue(10000)
-        self.spin_max_col.setPrefix("Max colony size: ")
+        # self.spin_max_col.setPrefix("Max colony size: ")
+        label_max_col_size = QLabel("Max Colony Size:")
 
         self.spin_circ = QDoubleSpinBox()
         self.spin_circ.setRange(0.0, 1.0)
         self.spin_circ.setSingleStep(0.05)
         self.spin_circ.setValue(0.5)
-        self.spin_circ.setPrefix("Circularity: ")
+        # self.spin_circ.setPrefix("Circularity: ")
+        label_circularity = QLabel("Min Circularity:")
 
         self.spin_sigma = QDoubleSpinBox()
         self.spin_sigma.setRange(0.0, 100.0)
         self.spin_sigma.setValue(2.0)
-        self.spin_sigma.setPrefix("Sigma: ")
+        # self.spin_sigma.setPrefix("Sigma: ")
+        label_sigma = QLabel("Sigma:")
 
-        advanced_layout.addWidget(self.spin_rolling)
-        advanced_layout.addWidget(self.spin_min_col)
-        advanced_layout.addWidget(self.spin_max_col)
-        advanced_layout.addWidget(self.spin_circ)
-        advanced_layout.addWidget(self.spin_sigma)
+        for spin in (
+            self.spin_rolling,
+            self.spin_min_col,
+            self.spin_max_col,
+            self.spin_circ,
+            self.spin_sigma,
+        ):
+            spin.setFixedWidth(120)
+
+        label_rolling_radius.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        label_min_col_size.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        label_max_col_size.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        label_circularity.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        label_sigma.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+        self.spin_rolling.setToolTip("Radius for rolling ball background noise subtraction.")
+        self.spin_min_col.setToolTip("Minimum colony size (in pixels) to be counted.")
+        self.spin_max_col.setToolTip("Maximum colony size (in pixels) to be counted.")
+        self.spin_circ.setToolTip("Minimum circularity (0.0 - 1.0) for colony detection.")
+        self.spin_sigma.setToolTip("Sigma value for Gaussian blur applied before colony detection.")
+
+        advanced_layout.setColumnStretch(0, 0)  # label (left)
+        advanced_layout.setColumnStretch(1, 0)  # spinbox (left)
+
+        advanced_layout.setColumnStretch(2, 1)  # empty space
+        # advanced_layout.setColumnStretch(3, 1)  # empty space
+        advanced_layout.setColumnStretch(4, 1)  # empty space
+
+        advanced_layout.setColumnStretch(5, 0)  # label (right)
+        advanced_layout.setColumnStretch(6, 0)  # spinbox (right)
+
+        advanced_layout.addWidget(label_rolling_radius, 0, 0); advanced_layout.addWidget(self.spin_rolling, 0, 1)
+        advanced_layout.addWidget(label_min_col_size, 0, 2); advanced_layout.addWidget(self.spin_min_col, 0, 3)
+        advanced_layout.addWidget(label_max_col_size, 0, 4); advanced_layout.addWidget(self.spin_max_col, 0, 5)
+        advanced_layout.addWidget(label_circularity, 1, 0); advanced_layout.addWidget(self.spin_circ, 1, 1)
+        advanced_layout.addWidget(label_sigma, 1, 2); advanced_layout.addWidget(self.spin_sigma, 1, 3)
 
         advanced_box.setLayout(advanced_layout)
         advanced_box.setVisible(False)
@@ -378,12 +430,10 @@ class FijiRunnerGUI(QMainWindow):
             "input=" + str(input_path),
             "output=" + str(output_path),
 
-
             "auto_threshold=" + str(self.chk_auto_thresh.isChecked()).lower(),
             "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
             "six_well=" + str(self.chk_six_well.isChecked()).lower(),
             "advanced=" + str(self.chk_advanced.isChecked()).lower(),
-            # "last_image=" + str(self.spin_last_image.value()),
         ]
 
         image_files = [
@@ -462,7 +512,7 @@ class FijiRunnerGUI(QMainWindow):
         for line in data.splitlines():
             # Only log the line if NONE of the junk keywords are in it
             if not any(key in line for key in junk_keywords):
-                self.log_to_console(line.strip(), "#eeec62") # Red for real errors
+                self.log_to_console(line.strip(), "#eeec62") # Red reserved for real errors
 
     def process_finished(self, exit_code, exit_status):
         color = "#5fb3b3" if exit_code == 0 else "#b6b6b6"
