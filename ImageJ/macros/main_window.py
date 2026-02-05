@@ -263,39 +263,30 @@ class FijiRunnerGUI(QMainWindow):
         advanced_box = QGroupBox("Advanced Settings")
         advanced_layout = QGridLayout()
 
-        # advanced_layout.setHorizontalSpacing(28)  # space between left/right parameter groups
-        # advanced_layout.setVerticalSpacing(16)    # space between rows
-        # advanced_layout.setContentsMargins(12, 14, 12, 10)
-
         self.spin_rolling = QSpinBox()
         self.spin_rolling.setRange(1, 10000)
-        self.spin_rolling.setValue(35)
-        # self.spin_rolling.setPrefix("Rolling ball: ")
+        self.spin_rolling.setValue(62)
         label_rolling_radius = QLabel("Rolling Ball Radius:")
 
         self.spin_min_col = QSpinBox()
         self.spin_min_col.setRange(1, 100000)
-        self.spin_min_col.setValue(100)
-        # self.spin_min_col.setPrefix("Min colony size: ")
+        self.spin_min_col.setValue(150)
         label_min_col_size = QLabel("Min Colony Size:")
 
         self.spin_max_col = QSpinBox()
         self.spin_max_col.setRange(1, 1000000)
         self.spin_max_col.setValue(10000)
-        # self.spin_max_col.setPrefix("Max colony size: ")
         label_max_col_size = QLabel("Max Colony Size:")
 
         self.spin_circ = QDoubleSpinBox()
         self.spin_circ.setRange(0.0, 1.0)
         self.spin_circ.setSingleStep(0.05)
         self.spin_circ.setValue(0.5)
-        # self.spin_circ.setPrefix("Circularity: ")
         label_circularity = QLabel("Min Circularity:")
 
         self.spin_sigma = QDoubleSpinBox()
         self.spin_sigma.setRange(0.0, 100.0)
         self.spin_sigma.setValue(2.0)
-        # self.spin_sigma.setPrefix("Sigma: ")
         label_sigma = QLabel("Sigma:")
 
         for spin in (
@@ -307,11 +298,14 @@ class FijiRunnerGUI(QMainWindow):
         ):
             spin.setFixedWidth(120)
 
-        label_rolling_radius.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        label_min_col_size.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        label_max_col_size.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        label_circularity.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        label_sigma.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        for label in (
+            label_rolling_radius,
+            label_min_col_size,
+            label_max_col_size,
+            label_circularity,
+            label_sigma,
+        ):
+            label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         self.spin_rolling.setToolTip("Radius for rolling ball background noise subtraction.")
         self.spin_min_col.setToolTip("Minimum colony size (in pixels) to be counted.")

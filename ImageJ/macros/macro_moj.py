@@ -399,8 +399,19 @@ for i, img_path in enumerate(all_images):
         # Write to Summary
         mode = 'w' if is_global_first else 'a'
         f_sum = open(summary_path, mode)
-        timeNow = 'countPHICS v' + macro_version + ' run: '+ str(java.time.Instant.now()) + '\n'
-        header = (timeNow + '\nImage\tGroup\tNum colonies\tMedianSize\tGeomMeanSize\tMin Thresh\tMax Thresh\tImage ROI\n')
+        timeNow = 'countPHICS v' + macro_version + ' run: '+ str(java.time.Instant.now())
+
+        parameters = 'Parameters: ' + \
+                    'AutoThreshold= ' + str(threshold_flag) + '; ' + \
+                    'SameROI=' + str(same_roi_flag) + '; ' + \
+                    'SixWell=' + str(six_well_flag) + '; ' + \
+                    'RollingBall=' + str(rolling_ball) + '; ' + \
+                    'MinColony=' + str(minimum_col) + '; ' + \
+                    'MaxColony=' + str(maximum_col) + '; ' + \
+                    'Circularity=' + str(circ) + '; ' + \
+                    'Sigma=' + str(sigma)
+
+        header = (timeNow + "\n" + parameters + "\n" + 'Image\tGroup\tNum colonies\tMedianSize\tGeomMeanSize\tMin Thresh\tMax Thresh\tImage ROI\n')
         if is_global_first:
                 f_sum.write(header)
                 # f_sum.write("Image\tCount\tMinThresh\tMaxThresh\tROI")
