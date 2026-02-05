@@ -15,7 +15,7 @@ from java.awt.event import ActionListener # type: ignore
 import os
 import sys
 
-macro_version = '2.1.0'
+macro_version = '2.1.1'
 
 # --- 1. Parameter Parsing ---
 def parse_parameter_file():
@@ -120,7 +120,7 @@ else:
 imp.close() # Close the calibration image
 
 # --- 4. The Refactored Count Function ---
-def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres_iteration_flag, output_txt_path, roi_def=None):
+def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres_iteration_flag, image_output_path, roi_def=None):
     """
     Refactored to take original_path instead of image_number strings.
     is_first: boolean, true if this is the very first image/well being analyzed (for initializing ROI).
@@ -243,7 +243,7 @@ def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres
         final_imp = proc_imp.flatten()
         
         # Construct output image path (replace .txt with .jpg)
-        jpg_path = output_txt_path.rsplit('.', 1)[0] + ".jpg"
+        jpg_path = image_output_path
         IJ.saveAs(final_imp, "jpg", jpg_path)
         final_imp.close()
     
@@ -334,41 +334,89 @@ for i, img_path in enumerate(all_images):
 
     # --- Standard Single Image Logic ---
     else:
-        out_name = file_name_base + ".txt"
-        out_path = os.path.join(output_directory, out_name)
+        # out_name = file_name_base + "size_distribution" + ".txt"
+        # out_path = os.path.join(output_directory, out_name)
+
+        size_output_file_name = file_name_base + "_size_distribution.txt"
+        size_output_path = os.path.join(output_directory, "size_distribution_files/", size_output_file_name)
+
+        image_output_file_name = file_name_base + "_counted.jpg"
+        image_output_path = os.path.join(output_directory, "image_outputs/", image_output_file_name)
+
+        if not os.path.exists(os.path.dirname(size_output_path)):
+            os.makedirs(os.path.dirname(size_output_path))
+        if not os.path.exists(os.path.dirname(image_output_path)):
+            os.makedirs(os.path.dirname(image_output_path))
+
+        group_name = file_name_base[:file_name_base.rfind('_')] if '_' in file_name_base else file_name_base
+        # print("Group Name: " + group_name + " for image: " + file_name_base)
         
         res = count_colonies(imp, img_path, is_global_first, same_roi_flag, 
-                             threshold_flag, thresh_flag_score, out_path)
+                             threshold_flag, thresh_flag_score, image_output_path)
         
         area_list = res[0]
         count = len(area_list) if area_list else 0
 
-        f = open(out_path, 'w')
+        # Write single image colony distribution file
+        f = open(size_output_path, 'w')
         f.write("Number of colonies: " + str(count) + "\n")
-        f.write("Units: " + res[3] + "\n")
+        # f.write("Units: " + res[3] + "\n")
+        f.write("Colony Area\n")
+
         if area_list:
+            area_list = [area * 645.16 * 100 for area in area_list]  # convert from pixels^2 to mm^2
             for area in area_list:
-                if res[3] == 'cm': area *= 100
-                elif res[3] == 'inch': area = area * 2.54**2 * 100
+                # if res[3] == 'cm': area *= 100
+                # elif res[3] == 'inch': area = area * 2.54**2 * 100
                 f.write(str(area) + "\n")
+
+        def calculate_median_area(area_list):
+            sorted_areas = sorted(area_list)
+            n = len(sorted_areas)
+            if n == 0:
+                return 0
+            elif n % 2 == 1:
+                return sorted_areas[n // 2]
+            else:
+                mid1 = sorted_areas[n // 2 - 1]
+                mid2 = sorted_areas[n // 2]
+                return (mid1 + mid2) / 2
+
+
+        def calculate_geometric_mean(area_list):
+            product = 1.0
+            n = len(area_list)
+            if n == 0:
+                return 0
+            for area in area_list:
+                product *= area
+            return product ** (1.0 / n)
+
+        if count > 0:
+            median_area = calculate_median_area(area_list)
+            geom_mean_area = calculate_geometric_mean(area_list)
 
         # Write to Summary
         mode = 'w' if is_global_first else 'a'
         f_sum = open(summary_path, mode)
         timeNow = 'countPHICS v' + macro_version + ' run: '+ str(java.time.Instant.now()) + '\n'
-        header = (timeNow + '\nImage\tNum colonies\tMin Thresh\tMax Thresh\tImage ROI\n')
+        header = (timeNow + '\nImage\tGroup\tNum colonies\tMedianSize\tGeomMeanSize\tMin Thresh\tMax Thresh\tImage ROI\n')
         if is_global_first:
                 f_sum.write(header)
                 # f_sum.write("Image\tCount\tMinThresh\tMaxThresh\tROI")
             
         t_min = globals().get('thres_min', 0)
         t_max = globals().get('thres_max', 0)
-        f_sum.write(file_name_base + "\t" + str(count) + "\t" + str(t_min) + "\t" + str(t_max) + "\t" + str(roi2) + "\n")
+        # f_sum.write(file_name_base + "\t" + group_name + "\t" + str(count) + "\t" + str(t_min) + "\t" + str(t_max) + "\t" + str(roi2) + "\n")
+        f_sum.write(file_name_base + "\t" + group_name + "\t" + str(count) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(t_min) + "\t" + str(t_max) + "\t" + str(roi2) + "\n")
 
         print(file_name_base + ": " + str(count))
         if count > 10: thresh_flag_score = False
 
     imp.close()
 
-WaitForUserDialog("Analysis complete!", "Results saved in:\n" + output_directory + "\nFIJI will now automatically close...").show()
+WaitForUserDialog("Analysis complete!", "Results saved in:\n" + 
+                  output_directory + 
+                  "\nFIJI will now automatically close...").show()
+
 IJ.run("Quit")

@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from sys import platform
 import datetime
+import matplotlib.pyplot as plt
 
 from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, 
                              QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
@@ -11,7 +12,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton,
 from PySide6.QtCore import QProcess, Qt
 from PySide6.QtGui import QTextCursor
 
-# import json, tempfile
+from grapher import FIJIGrapher
 
 # Custom QSS Styling
 STYLE_SHEET = """
@@ -522,6 +523,61 @@ class FijiRunnerGUI(QMainWindow):
         self.log_to_console(f"<b>PROCESS FINISHED (Code: {exit_code})</b>", color)
         self.run_btn.setEnabled(True)
         self.cancel_btn.setEnabled(False)
+        self.on_fiji_finished(
+            summary_file=self.get_output_path(self.get_input_path()) / "Summary.txt",
+            area_distribution_files=[file for file in Path(self.get_output_path(self.get_input_path()), "size_distribution_files").glob("*size_distribution.txt")],
+            output_dir=self.get_output_path(self.get_input_path())
+        )
+
+    def on_fiji_finished(self, summary_file: Path, area_distribution_files: list[Path], output_dir: Path):
+        try:
+            grapher = FIJIGrapher()
+
+            grapher.load_summary_file(summary_file)
+            area_distribution_data = grapher.load_area_distribution_file(
+                area_distribution_files[0], skiprows=1
+            )
+
+            # print(area_distribution_data.columns)
+
+            plots_dir = output_dir / "plots"
+            plots_dir.mkdir(exist_ok=True)
+
+            grapher.boxplot(
+                x="Group",
+                y="Num colonies",
+                title="Mean intensity by condition"
+            )
+            grapher.save_current_plot(plots_dir / "intensity_box.png")
+            plt.close()
+
+            grapher.set_data(area_distribution_data)
+
+            grapher.histogram(
+                x=area_distribution_data.columns.tolist()[0],
+                bins=30,
+                title="Colony Area Distribution"
+            )
+            grapher.save_current_plot(plots_dir / "area_hist.png")
+            plt.close()
+
+
+            # grapher.scatter(
+            #     x="Area",
+            #     y="MeanIntensity",
+            #     title="Intensity vs Area"
+            # )
+            # grapher.save_current_plot(plots_dir / "area_vs_intensity.png")
+            # plt.close()
+
+            self.log_to_console(
+                f"Saved plots to {plots_dir}", "green"
+            )
+
+        except Exception as e:
+            self.log_to_console(
+                f"Plot generation failed: {e}", "red"
+            )
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
