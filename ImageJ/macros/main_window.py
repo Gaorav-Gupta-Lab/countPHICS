@@ -434,13 +434,6 @@ class FijiRunnerGUI(QMainWindow):
             "advanced=" + str(self.chk_advanced.isChecked()).lower(),
         ]
 
-        image_files = [
-            str(file)
-            for file in input_path.parent.iterdir()
-            if file.suffix.lower() in [".tif", ".tiff"]
-        ]
-
-        lines.append("images=" + ";".join(image_files))
 
         if self.chk_advanced.isChecked():
             lines.extend([
@@ -450,6 +443,14 @@ class FijiRunnerGUI(QMainWindow):
                 "circularity=" + str(self.spin_circ.value()),
                 "sigma=" + str(self.spin_sigma.value()),
             ])
+
+        image_files = [
+            str(file)
+            for file in input_path.parent.iterdir()
+            if file.suffix.lower() in [".tif", ".tiff"]
+        ]
+
+        lines.append("images=" + ";".join(image_files))
 
         with open(config_path, "w") as f:
             f.write("\n".join(lines))
@@ -542,27 +543,22 @@ class FijiRunnerGUI(QMainWindow):
                 y="Num colonies",
                 title="Mean intensity by condition"
             )
-            grapher.save_current_plot(plots_dir / "intensity_box.png")
+            grapher.save_current_plot(plots_dir / "all_colony_counts_boxplot.png")
             plt.close()
 
-            grapher.set_data(area_distribution_data)
+            for area_distribution_file in area_distribution_files:
+                area_distribution_data = grapher.load_area_distribution_file(
+                    area_distribution_file, skiprows=1
+                )
+                grapher.set_data(area_distribution_data)
 
-            grapher.histogram(
-                x=area_distribution_data.columns.tolist()[0],
-                bins=30,
-                title="Colony Area Distribution"
-            )
-            grapher.save_current_plot(plots_dir / "area_hist.png")
-            plt.close()
-
-
-            # grapher.scatter(
-            #     x="Area",
-            #     y="MeanIntensity",
-            #     title="Intensity vs Area"
-            # )
-            # grapher.save_current_plot(plots_dir / "area_vs_intensity.png")
-            # plt.close()
+                grapher.histogram(
+                    x=area_distribution_data.columns.tolist()[0],
+                    bins=30,
+                    title="Colony Area Distribution"
+                )
+                grapher.save_current_plot(plots_dir / f"{area_distribution_file.stem}_area_hist.png")
+                plt.close()
 
             self.log_to_console(
                 f"Saved plots to {plots_dir}", "green"
