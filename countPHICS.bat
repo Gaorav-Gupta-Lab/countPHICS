@@ -1,3 +1,3 @@
-cd "release\"
-start countPHICS.exe
+
+python main_window.py
 exit

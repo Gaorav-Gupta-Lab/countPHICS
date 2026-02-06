@@ -1,3 +1,7 @@
+"""
+This is the entry point for countPHICS2
+"""
+
 import sys
 from pathlib import Path
 from sys import platform
@@ -5,15 +9,14 @@ import datetime
 import matplotlib.pyplot as plt
 import natsort
 
-from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, 
-                             QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
-                             QFileDialog, QCheckBox, QSpinBox, QGroupBox, 
-                             QDoubleSpinBox, QLineEdit, QLabel, QGridLayout)
+from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
+                               QFileDialog, QCheckBox, QSpinBox, QGroupBox, QDoubleSpinBox, QLineEdit, QLabel,
+                               QGridLayout)
 
 from PySide6.QtCore import QProcess, Qt
 from PySide6.QtGui import QTextCursor
-
-from grapher import FIJIGrapher
+from ImageJ.macros.grapher import FIJIGrapher
+# from grapher import FIJIGrapher
 
 # Custom QSS Styling
 STYLE_SHEET = """
@@ -184,8 +187,6 @@ QPushButton#browse_btn {
     min-width: 90px;
     max-width: 95px;
     min-height: 20px;
-    
-}
 
 QPushButton#browse_btn:hover { background-color: #316363; }
 QPushButton#browse_btn:pressed { background-color: #3f434a; }
@@ -202,6 +203,24 @@ class FijiRunnerGUI(QMainWindow):
         self.process.readyReadStandardOutput.connect(self.handle_stdout)
         self.process.readyReadStandardError.connect(self.handle_stderr)
         self.process.finished.connect(self.process_finished)
+        self.input_edit = QLineEdit()
+        self.console = QTextEdit()
+        self.output_edit = QLineEdit()
+        self.input_btn = QPushButton("Browse Input")
+        self.output_btn = QPushButton("Browse Output")
+        self.spin_rolling = QSpinBox()
+        self.spin_min_col = QSpinBox()
+        self.spin_max_col = QSpinBox()
+        self.spin_circ = QDoubleSpinBox()
+        self.spin_sigma = QDoubleSpinBox()
+        self.run_btn = QPushButton("▶ LAUNCH FIJI")
+        self.cancel_btn = QPushButton("CANCEL PROCESS")
+        self.exit_btn = QPushButton("✖ EXIT")
+
+        self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
+        self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
+        self.chk_six_well = QCheckBox("6-well plate analysis")
+        self.chk_advanced = QCheckBox("Enable advanced settings")
 
         self.init_ui()
 
@@ -212,15 +231,12 @@ class FijiRunnerGUI(QMainWindow):
         layout.setSpacing(15)
 
         # Header/Console Label
-        self.console = QTextEdit()
         self.console.setReadOnly(True)
         self.console.setPlaceholderText("System logs will appear here...")
         layout.addWidget(self.console)
 
         # Input path
-        self.input_edit = QLineEdit()
         self.input_edit.setPlaceholderText("Select first image…")
-        self.input_btn = QPushButton("Browse Input")
         self.input_btn.setObjectName("browse_btn")
         self.input_btn.clicked.connect(self.select_input_file)
 
@@ -231,9 +247,7 @@ class FijiRunnerGUI(QMainWindow):
         layout.addLayout(row1)
 
         # Output path
-        self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Select output directory… (will default to input image folder if left blank)")
-        self.output_btn = QPushButton("Browse Output")
         self.output_btn.setObjectName("browse_btn")
         self.output_btn.clicked.connect(self.select_output_folder)
 
@@ -247,11 +261,6 @@ class FijiRunnerGUI(QMainWindow):
         general_box = QGroupBox("General settings")
         general_layout = QVBoxLayout()
 
-        self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
-        self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
-        self.chk_six_well = QCheckBox("6-well plate analysis")
-        self.chk_advanced = QCheckBox("Enable advanced settings")
-
         general_layout.addWidget(self.chk_auto_thresh)
         general_layout.addWidget(self.chk_same_roi)
         general_layout.addWidget(self.chk_six_well)
@@ -264,28 +273,24 @@ class FijiRunnerGUI(QMainWindow):
         advanced_box = QGroupBox("Advanced Settings")
         advanced_layout = QGridLayout()
 
-        self.spin_rolling = QSpinBox()
         self.spin_rolling.setRange(1, 10000)
         self.spin_rolling.setValue(62)
         label_rolling_radius = QLabel("Rolling Ball Radius:")
 
-        self.spin_min_col = QSpinBox()
+
         self.spin_min_col.setRange(1, 100000)
         self.spin_min_col.setValue(150)
         label_min_col_size = QLabel("Min Colony Size:")
 
-        self.spin_max_col = QSpinBox()
         self.spin_max_col.setRange(1, 1000000)
         self.spin_max_col.setValue(10000)
         label_max_col_size = QLabel("Max Colony Size:")
 
-        self.spin_circ = QDoubleSpinBox()
         self.spin_circ.setRange(0.0, 1.0)
         self.spin_circ.setSingleStep(0.05)
         self.spin_circ.setValue(0.5)
         label_circularity = QLabel("Min Circularity:")
 
-        self.spin_sigma = QDoubleSpinBox()
         self.spin_sigma.setRange(0.0, 100.0)
         self.spin_sigma.setValue(2.0)
         label_sigma = QLabel("Sigma:")
@@ -340,18 +345,16 @@ class FijiRunnerGUI(QMainWindow):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(10)
 
-        self.run_btn = QPushButton("▶ LAUNCH FIJI")
         self.run_btn.setObjectName("run_btn")
         self.run_btn.setCursor(Qt.PointingHandCursor)
         self.run_btn.clicked.connect(self.start_process)
-        
-        self.cancel_btn = QPushButton("CANCEL PROCESS")
+
         self.cancel_btn.setObjectName("cancel_btn")
         self.cancel_btn.setCursor(Qt.PointingHandCursor)
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self.cancel_process)
 
-        self.exit_btn = QPushButton("✖ EXIT")
+
         self.exit_btn.setObjectName("exit_btn")
         self.exit_btn.setCursor(Qt.PointingHandCursor)
         self.exit_btn.clicked.connect(self.close)
