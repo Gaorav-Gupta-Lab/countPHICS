@@ -11,7 +11,7 @@ import seaborn as sns
 @dataclass
 class FijiRunMetadata:
     macro_version: str
-    runtime_seconds: float
+    run_datetime: float
     raw_header: str
 
 
@@ -57,11 +57,14 @@ class FIJIGrapher:
 
             self.metadata = self._parse_metadata(header_line)
 
+            print(f"Parsed metadata: {self.metadata}")
+
             self.data = pd.read_csv(
                 filepath,
                 sep="\t",
                 header=0,
-                skiprows=2
+                comment="#",
+                skip_blank_lines=True
             )
 
             print(
@@ -79,14 +82,18 @@ class FIJIGrapher:
         MacroVersion=1.2.3; RuntimeSeconds=184.5
         """
         parts = {}
-        for token in header_line.split(";"):
-            if "=" in token:
-                k, v = token.split("=", 1)
-                parts[k.strip()] = v.strip()
+        # for token in header_line.split(" "):
+            # if "=" in token:
+            #     k, v = token.split("=", 1)
+            #     parts[k.strip()] = v.strip()
+        split_header = header_line.split(" ")
+        parts["macro_version"] = split_header[2]
+        parts["run_datetime"] = split_header[4] + " " + split_header[5]
+        print(parts)
 
         return FijiRunMetadata(
-            macro_version=parts.get("MacroVersion", "unknown"),
-            runtime_seconds=float(parts.get("RuntimeSeconds", np.nan)),
+            macro_version=parts.get("macro_version", "version_unknown"),
+            run_datetime=parts.get("run_datetime", "date_unkown"),
             raw_header=header_line
         )
     
@@ -98,7 +105,7 @@ class FIJIGrapher:
             return
 
         try:
-            data = pd.read_csv(
+            self.data = pd.read_csv(
                 filepath,
                 sep="\t",
                 header=0,
@@ -106,10 +113,10 @@ class FIJIGrapher:
             )
 
             print(
-                f"Loaded {len(data)} rows from {filepath.name}"
+                f"Loaded {len(self.data)} rows from {filepath.name}"
             )
 
-            return data
+            return self.data
 
         except Exception as e:
             print(f"Failed to load area distribution data: {e}")
@@ -251,7 +258,7 @@ class FIJIGrapher:
         if not self.metadata:
             return
 
-        footer = f"Macro {self.metadata.macro_version} | Runtime {self.metadata.runtime_seconds:.1f}s"
+        footer = f"Macro {self.metadata.macro_version} | {self.metadata.run_datetime}"
         plt.figtext(
             0.99, 0.01,
             footer,

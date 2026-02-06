@@ -14,8 +14,9 @@ from java.awt.event import ActionListener # type: ignore
 
 import os
 import sys
+import math
 
-macro_version = '2.1.1'
+macro_version = '2.1.2'
 
 # --- 1. Parameter Parsing ---
 def parse_parameter_file():
@@ -264,7 +265,6 @@ for i, img_path in enumerate(all_images):
     if not os.path.exists(img_path):
         print("File not found, skipping: " + img_path)
         continue
-
     # Filename handling
     file_name_full = os.path.basename(img_path)
     file_name_base = os.path.splitext(file_name_full)[0] # e.g. "image_01" from "image_01.tif"
@@ -382,15 +382,19 @@ for i, img_path in enumerate(all_images):
                 mid2 = sorted_areas[n // 2]
                 return (mid1 + mid2) / 2
 
-
         def calculate_geometric_mean(area_list):
-            product = 1.0
+            if not area_list:
+                return 0.0
+
+            log_sum = 0.0
             n = len(area_list)
-            if n == 0:
-                return 0
+
             for area in area_list:
-                product *= area
-            return product ** (1.0 / n)
+                if area <= 0:
+                    continue
+                log_sum += math.log(area)
+
+            return math.exp(log_sum / n)
 
         if count > 0:
             median_area = calculate_median_area(area_list)
@@ -399,19 +403,21 @@ for i, img_path in enumerate(all_images):
         # Write to Summary
         mode = 'w' if is_global_first else 'a'
         f_sum = open(summary_path, mode)
-        timeNow = 'countPHICS v' + macro_version + ' run: '+ str(java.time.Instant.now())
+        current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
 
-        parameters = 'Parameters: ' + \
-                    'AutoThreshold= ' + str(threshold_flag) + '; ' + \
-                    'SameROI=' + str(same_roi_flag) + '; ' + \
-                    'SixWell=' + str(six_well_flag) + '; ' + \
-                    'RollingBall=' + str(rolling_ball) + '; ' + \
-                    'MinColony=' + str(minimum_col) + '; ' + \
-                    'MaxColony=' + str(maximum_col) + '; ' + \
-                    'Circularity=' + str(circ) + '; ' + \
-                    'Sigma=' + str(sigma)
+        metadata = '# countPHICS v' + macro_version + ' run: '+ current_time + '\n'
 
-        header = (timeNow + "\n" + parameters + "\n" + 'Image\tGroup\tNum colonies\tMedianSize\tGeomMeanSize\tMin Thresh\tMax Thresh\tImage ROI\n')
+        parameters = '# Parameters: \n' + \
+                    '# AutoThreshold= ' + str(threshold_flag) + '\n' + \
+                    '# SameROI=' + str(same_roi_flag) + '\n' + \
+                    '# SixWell=' + str(six_well_flag) + '\n' + \
+                    '# RollingBall=' + str(rolling_ball) + '\n' + \
+                    '# MinColony=' + str(minimum_col) + '\n' + \
+                    '# MaxColony=' + str(maximum_col) + '\n' + \
+                    '# Circularity=' + str(circ) + '\n' + \
+                    '# Sigma=' + str(sigma) + '\n'
+
+        header = (metadata + "\n" + parameters + "\n" + 'Image\tGroup\tNum colonies\tMedianSize\tGeomMeanSize\tMin Thresh\tMax Thresh\tImage ROI\n')
         if is_global_first:
                 f_sum.write(header)
                 # f_sum.write("Image\tCount\tMinThresh\tMaxThresh\tROI")
@@ -419,8 +425,8 @@ for i, img_path in enumerate(all_images):
         t_min = globals().get('thres_min', 0)
         t_max = globals().get('thres_max', 0)
         # f_sum.write(file_name_base + "\t" + group_name + "\t" + str(count) + "\t" + str(t_min) + "\t" + str(t_max) + "\t" + str(roi2) + "\n")
-        f_sum.write(file_name_base + "\t" + group_name + "\t" + str(count) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(t_min) + "\t" + str(t_max) + "\t" + str(roi2) + "\n")
-
+        f_sum.write(file_name_base + ".tif\t" + group_name + "\t" + str(count) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(t_min) + "\t" + str(t_max) + "\t" + str(roi2) + "\n")
+        f_sum.close()
         print(file_name_base + ": " + str(count))
         if count > 10: thresh_flag_score = False
 

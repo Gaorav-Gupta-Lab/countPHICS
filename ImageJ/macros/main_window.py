@@ -3,6 +3,7 @@ from pathlib import Path
 from sys import platform
 import datetime
 import matplotlib.pyplot as plt
+import natsort
 
 from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, 
                              QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
@@ -449,7 +450,7 @@ class FijiRunnerGUI(QMainWindow):
             for file in input_path.parent.iterdir()
             if file.suffix.lower() in [".tif", ".tiff"]
         ]
-
+        image_files = natsort.natsorted(image_files)
         lines.append("images=" + ";".join(image_files))
 
         with open(config_path, "w") as f:
@@ -511,7 +512,7 @@ class FijiRunnerGUI(QMainWindow):
         for line in data.splitlines():
             # Only log the line if NONE of the junk keywords are in it
             if not any(key in line for key in junk_keywords):
-                self.log_to_console(line.strip(), "#eeec62") # Red reserved for real errors
+                self.log_to_console(line.strip(), "#eeec62")
 
     def process_finished(self, exit_code, exit_status):
         color = "#5fb3b3" if exit_code == 0 else "#b6b6b6"
@@ -528,16 +529,11 @@ class FijiRunnerGUI(QMainWindow):
         try:
             grapher = FIJIGrapher()
 
-            grapher.load_summary_file(summary_file)
-            area_distribution_data = grapher.load_area_distribution_file(
-                area_distribution_files[0], skiprows=1
-            )
-
-            # print(area_distribution_data.columns)
-
             plots_dir = output_dir / "plots"
             plots_dir.mkdir(exist_ok=True)
 
+            # Generate boxplot for colony counts
+            grapher.load_summary_file(summary_file)
             grapher.boxplot(
                 x="Group",
                 y="Num colonies",
@@ -546,12 +542,11 @@ class FijiRunnerGUI(QMainWindow):
             grapher.save_current_plot(plots_dir / "all_colony_counts_boxplot.png")
             plt.close()
 
+            # Generate histograms for each area distribution file
             for area_distribution_file in area_distribution_files:
                 area_distribution_data = grapher.load_area_distribution_file(
                     area_distribution_file, skiprows=1
                 )
-                grapher.set_data(area_distribution_data)
-
                 grapher.histogram(
                     x=area_distribution_data.columns.tolist()[0],
                     bins=30,
