@@ -3,6 +3,7 @@ This is the entry point for countPHICS2
 """
 
 import sys
+import os
 from pathlib import Path
 from sys import platform
 import datetime
@@ -16,189 +17,14 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayo
 from PySide6.QtCore import QProcess, Qt
 from PySide6.QtGui import QTextCursor
 from ImageJ.macros.grapher import FIJIGrapher
-# from grapher import FIJIGrapher
-
-# Custom QSS Styling
-STYLE_SHEET = """
-/* --- App base --- */
-QMainWindow {
-    background-color: #23262b;
-}
-
-QWidget {
-    color: #e6e6e6;
-    font-size: 12px;
-}
-
-/* --- Title label --- */
-QLabel#title {
-    font-size: 20px;
-    font-weight: 700;
-    color: #f0f0f0;
-}
-
-/* --- Cards / group boxes --- */
-QGroupBox {
-    background-color: #2b2f36;
-    border: 1px solid #3a3f47;
-    border-radius: 10px;
-    margin-top: 12px;
-    padding: 12px;
-    font: bold;
-    color: #5fb3b3;
-}
-
-QGroupBox::title {
-    subcontrol-origin: margin;
-    subcontrol-position: top left;
-    padding: 0 8px;
-    margin-left: 2px;
-}
-
-/* --- Inputs --- */
-QLineEdit, QSpinBox, QDoubleSpinBox {
-    background-color: #1c1f24;
-    border: 1px solid #3a3f47;
-    border-radius: 8px;
-    padding: 6px 12px;
-    color: #e6e6e6;
-}
-
-QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
-    border: 1px solid #5fb3b3;
-}
-
-QLineEdit::placeholder {
-    color: #8e96a3;
-}
-
-/* Make spinboxes look cleaner */
-QSpinBox::up-button, QSpinBox::down-button,
-QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-    width: 16px;
-    border: none;
-    background: transparent;
-}
-
-/* --- Checkboxes --- */
-QCheckBox {
-    spacing: 6px;
-    padding: 1px 0;
-    color: #dfe4ea;
-}
-
-QCheckBox::indicator {
-    width: 14px;
-    height: 14px;
-    border-radius: 4px;
-    border: 1px solid #5b616c;
-    background-color: #1c1f24;
-}
-
-QCheckBox::indicator:hover {
-    border: 1px solid #7faeb3;
-}
-
-QCheckBox::indicator:checked {
-    background-color: #5fb3b3;
-    border: 1px solid #5fb3b3;
-}
-
-QCheckBox::indicator:checked:hover {
-    background-color: #6fd0d0;
-}
-
-/* --- Console --- */
-QTextEdit {
-    background-color: #111316;
-    color: #cbd5e1;
-    border: 1px solid #3a3f47;
-    border-radius: 10px;
-    padding: 10px;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 12px;
-}
-
-QTextEdit:focus {
-    border: 1px solid #5fb3b3;
-}
-
-/* --- Buttons --- */
-QPushButton {
-    font-weight: 700;
-    font-size: 13px;
-    padding: 10px 16px;
-    border-radius: 10px;
-    color: white;
-    border: 1px solid transparent;
-}
-
-QPushButton:hover {
-    opacity: 0.95;
-}
-
-QPushButton:pressed {
-    opacity: 0.88;
-}
-
-/* Primary */
-QPushButton#run_btn {
-    background-color: #2d8a4e;
-    border: 1px solid #3eaf68;
-}
-
-QPushButton#run_btn:hover { background-color: #39a760; }
-QPushButton#run_btn:pressed { background-color: #257242; }
-QPushButton#run_btn:disabled {
-    background-color: #39413d;
-    border: 1px solid #39413d;
-    color: #8a8f96;
-}
-
-/* Danger */
-QPushButton#cancel_btn {
-    background-color: #b33a3a;
-    border: 1px solid #d44c4c;
-}
-
-QPushButton#cancel_btn:hover { background-color: #d44c4c; }
-QPushButton#cancel_btn:pressed { background-color: #952f2f; }
-QPushButton#cancel_btn:disabled {
-    background-color: #3e2f2f;
-    border: 1px solid #3e2f2f;
-    color: #8a8f96;
-}
-
-/* Neutral */
-QPushButton#exit_btn {
-    background-color: #3c4048;
-    border: 1px solid #515763;
-}
-
-QPushButton#exit_btn:hover { background-color: #515763; }
-QPushButton#exit_btn:pressed { background-color: #2f333a; }
-
-/* Smaller “browse” buttons */
-QPushButton#browse_btn {
-    padding: 6px 6px;
-    font-weight: 600;
-    background-color: #357575;
-    border: 1px solid #515763;
-    min-width: 90px;
-    max-width: 95px;
-    min-height: 20px;
-
-QPushButton#browse_btn:hover { background-color: #316363; }
-QPushButton#browse_btn:pressed { background-color: #3f434a; }
-"""
 
 class FijiRunnerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Colony Counter Interface")
         self.resize(1000, 800)
-        self.setStyleSheet(STYLE_SHEET)
-
+        # self.setStyleSheet(STYLE_SHEET)
+        self.setStyleSheet(self.load_stylesheet())
         self.process = QProcess(self)
         self.process.readyReadStandardOutput.connect(self.handle_stdout)
         self.process.readyReadStandardError.connect(self.handle_stderr)
@@ -223,6 +49,27 @@ class FijiRunnerGUI(QMainWindow):
         self.chk_advanced = QCheckBox("Enable advanced settings")
 
         self.init_ui()
+
+    @staticmethod
+    def load_stylesheet():
+        """Loads a QSS file and returns its content."""
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        layout_file = os.path.join(base_dir, "layout.qss")
+
+        try:
+            with open(layout_file, 'r', encoding="utf-8-sig", newline="") as f:
+                return f.read()
+
+        except UnicodeDecodeError as e:
+            print(f"Error: Could not decode stylesheet '{layout_file}' as UTF-8 ({e}).")
+            print("Tip: Re-save layout.qss as UTF-8, or remove any unusual characters.")
+            # Fallback: load with a Windows-friendly encoding so the app can still start
+            with open(layout_file, "r", encoding="cp1252", errors="replace", newline="") as f:
+                return f.read()
+
+        except FileNotFoundError:
+            print("Error: Stylesheet file {} not found.".format(layout_file))
+            return ""
 
     def init_ui(self):
         main_widget = QWidget()
@@ -375,7 +222,6 @@ class FijiRunnerGUI(QMainWindow):
         d = QFileDialog.getExistingDirectory(self, "Select Output Folder")
         if d:
             self.output_edit.setText(d)
-
 
     def get_command(self):
         current_dir = Path(__file__).parent.resolve()

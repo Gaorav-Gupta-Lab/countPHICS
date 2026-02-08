@@ -5,7 +5,7 @@ from ij.measure import ResultsTable # type: ignore
 from ij.plugin.frame import RoiManager # type: ignore
 from ij.measure import Measurements # type: ignore
 from ij.gui import (OvalRoi, TrimmedButton, NonBlockingGenericDialog, # type: ignore
-                    Toolbar, Roi, WaitForUserDialog, Overlay)
+                    Toolbar, Roi, WaitForUserDialog, Overlay) # type: ignore
 from ij.io import OpenDialog # type: ignore
 
 import java.time # type: ignore
