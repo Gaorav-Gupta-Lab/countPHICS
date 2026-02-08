@@ -94,7 +94,7 @@ QTextEdit {
     border-radius: 10px;
     padding: 10px;
     font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 12px;
+    font-size: 16px;
 }
 
 QTextEdit:focus {

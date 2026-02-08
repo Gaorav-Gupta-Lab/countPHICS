@@ -83,9 +83,10 @@ class FijiRunnerGUI(QMainWindow):
         layout.addWidget(self.console)
 
         # Input path
-        self.input_edit.setPlaceholderText("Select first image…")
+        # self.input_edit.setPlaceholderText("Select first image…")
+        self.input_edit.setPlaceholderText("Select Folder Containing Images")
         self.input_btn.setObjectName("browse_btn")
-        self.input_btn.clicked.connect(self.select_input_file)
+        self.input_btn.clicked.connect(self.select_input_folder)
 
         row1 = QHBoxLayout()
         row1.addWidget(QLabel("Input image:"))
@@ -213,10 +214,15 @@ class FijiRunnerGUI(QMainWindow):
         layout.addLayout(button_layout)
         self.setCentralWidget(main_widget)
 
-    def select_input_file(self):
+    def select_input_folder(self):
+        """
         f, _ = QFileDialog.getOpenFileName(self, "Select First Image")
         if f:
             self.input_edit.setText(f)
+        """
+        file_input_folder = QFileDialog.getExistingDirectory(self, "Select File Input Folder")
+        if file_input_folder:
+            self.input_edit.setText(file_input_folder)
 
     def select_output_folder(self):
         d = QFileDialog.getExistingDirectory(self, "Select Output Folder")
@@ -224,15 +230,28 @@ class FijiRunnerGUI(QMainWindow):
             self.output_edit.setText(d)
 
     def get_command(self):
-        current_dir = Path(__file__).parent.resolve()
-        script_path = current_dir / "macro_moj.py"
-        
+        """
+        Construct the command to run ImageJ macro with input and output paths
+        Current_dir is subject to error depending on how the script is run.  
+        """
+        # current_dir = Path(__file__).parent.resolve()
+        # script_path = current_dir / "macro_moj.py"
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        script_path = "{0}{1}ImageJ{1}macros{1}macro_moj.py".format(base_dir,os.sep)
+
         if platform == "win32":
-            fiji_path = current_dir.parent / "ImageJ-win64.exe"
+            """
+            I don't like hard coding the file name here, especially since it is no longer the correct name for Fiji.
+            """
+            # fiji_path = current_dir.parent / "ImageJ-win64.exe"
+            fiji_path = "{0}{1}ImageJ{1}ImageJ-win64.exe".format(base_dir,os.sep)
+
         else:
             fiji_path = Path("/Users/pguerra/Library/CloudStorage/OneDrive-UniversityofNorthCarolinaatChapelHill/Desktop/Fiji")
 
-        if not fiji_path.exists():
+        # if not fiji_path.exists():
+        if not os.path.isfile(fiji_path):
             self.log_to_console(f"ERROR: Fiji not found at {fiji_path}", "red")
             return None
 
