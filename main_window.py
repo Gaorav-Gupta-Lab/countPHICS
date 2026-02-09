@@ -232,7 +232,7 @@ class FijiRunnerGUI(QMainWindow):
     def get_command(self):
         """
         Construct the command to run ImageJ macro with input and output paths
-        Current_dir is subject to error depending on how the script is run.  
+        Current_dir is subject to error depending on how the script is run.
         """
         # current_dir = Path(__file__).parent.resolve()
         # script_path = current_dir / "macro_moj.py"
@@ -264,26 +264,25 @@ class FijiRunnerGUI(QMainWindow):
         self.console.ensureCursorVisible()
 
     def get_input_path(self):
-        text = self.input_edit.text().strip()
-        if not text:
+        input_path = self.input_edit.text().strip()
+
+        if not input_path:
             self.log_to_console("ERROR: Input image path is required.", "red")
             return None
 
-        path = Path(text).resolve()
-        if not path.exists():
-            self.log_to_console(f"ERROR: Input file does not exist: {path}", "red")
+        if not os.path.exists(input_path):
+            self.log_to_console(f"ERROR: Input path does not exist: {input_path}", "red")
             return None
 
-        return path
+        return input_path
     
     def get_output_path(self, input_path):
         text = self.output_edit.text().strip()
-
         if text:
             base = Path(text)
         else:
-            base = input_path.parent
-            self.output_edit.setText(str(base))
+            base = input_path
+            self.output_edit.setText(input_path)
 
         output_path = (base / "countPHICS_output").resolve()
         output_path.mkdir(parents=True, exist_ok=True)
@@ -303,7 +302,6 @@ class FijiRunnerGUI(QMainWindow):
             "advanced=" + str(self.chk_advanced.isChecked()).lower(),
         ]
 
-
         if self.chk_advanced.isChecked():
             lines.extend([
                 "rolling_ball=" + str(self.spin_rolling.value()),
@@ -315,7 +313,7 @@ class FijiRunnerGUI(QMainWindow):
 
         image_files = [
             str(file)
-            for file in input_path.parent.iterdir()
+            for file in Path(input_path).glob("*")
             if file.suffix.lower() in [".tif", ".tiff"]
         ]
         image_files = natsort.natsorted(image_files)

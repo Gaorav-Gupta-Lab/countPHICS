@@ -16,7 +16,7 @@ import os
 import sys
 import math
 
-macro_version = '2.1.2'
+macro_version = '2.2.0'
 
 # --- 1. Parameter Parsing ---
 def parse_parameter_file():
@@ -60,7 +60,7 @@ if not images_raw or not output_directory:
     IJ.log("Missing required parameters (images or output). Aborting.")
     sys.exit()
 
-# Create list of images from the parameter string
+# Create a list of images from the parameter string
 all_images = images_raw.split(";")
 
 # Helper for boolean conversion
