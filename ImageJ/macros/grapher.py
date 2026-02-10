@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.stats import weibull_min, kstest
 
 # ----------------------------
 # Metadata container
@@ -77,9 +78,6 @@ class FIJIGrapher:
     def _parse_metadata(self, header_line: str) -> FijiRunMetadata:
         """
         Parse macro metadata from the first line.
-
-        Example header:
-        MacroVersion=1.2.3; RuntimeSeconds=184.5
         """
         parts = {}
         # for token in header_line.split(" "):
@@ -166,19 +164,64 @@ class FIJIGrapher:
         self,
         x: str,
         bins: int = 30,
-        kde: bool = True,
+        kde: bool = False,
         title: str | None = None,
     ):
         self.assert_columns(x)
 
+        # ---- Prepare data ----
+        data = self.data[x].dropna()
+        data = data[data > 0]  # Weibull requires positive values
+
+        if len(data) == 0:
+            raise ValueError("Weibull fit requires positive values.")
+
         self._new_figure()
-        sns.histplot(data=self.data, x=x, bins=bins, kde=kde)
+
+        # ---- Histogram (normalized) ----
+        sns.histplot(
+            data=data,
+            bins=bins,
+            stat="density",     # CRITICAL
+            kde=kde,
+            edgecolor="black",
+            alpha=0.6,
+        )
+
+        # ---- Weibull fit (MLE) ----
+        shape, loc, scale = weibull_min.fit(data, floc=0)
+
+        # ---- PDF for plotting ----
+        x_fit = np.linspace(data.min(), data.max(), 500)
+        y_fit = weibull_min.pdf(x_fit, shape, loc=loc, scale=scale)
+
+        plt.plot(
+            x_fit,
+            y_fit,
+            "r-",
+            linewidth=2.5,
+            label=f"Weibull fit (k={shape:.2f}, λ={scale:.2f})"
+        )
+
+        # ---- Goodness of fit (KS test) ----
+        D, p = kstest(data, "weibull_min", args=(shape, loc, scale))
+
+        plt.text(
+            0.95,
+            0.95,
+            f"KS p = {p:.3g}",
+            transform=plt.gca().transAxes,
+            ha="right",
+            va="top"
+        )
 
         plt.xlabel(x)
-        plt.ylabel("Count")
+        plt.ylabel("Density")
         plt.title(title or f"Distribution of {x}")
+        plt.legend()
 
         self._annotate_metadata()
+
 
     def boxplot(
         self,

@@ -16,7 +16,7 @@ import os
 import sys
 import math
 
-macro_version = '2.2.0'
+macro_version = '2.2.1'
 
 # --- 1. Parameter Parsing ---
 def parse_parameter_file():
@@ -64,7 +64,9 @@ if not images_raw or not output_directory:
 all_images = images_raw.split(";")
 
 # Helper for boolean conversion
-def as_bool(v):
+def as_bool(v, default=False):
+    if v is None:
+        return default
     return v == 'true'
 
 # --- 2. Calibration (Based on first image) ---
@@ -107,6 +109,7 @@ if advanced_flag:
     minimum_col  = int(params.get("min_colony", int(0.01 * w)))
     maximum_col  = int(params.get("max_colony", int(w)))
     circ         = float(params.get("circularity", 0.5))
+    roi_thickness = int(params.get("roi_thickness", 3))
     if not units_known:
         sigma = float(params.get("sigma", 0.001 * w))
     else:
@@ -116,6 +119,7 @@ else:
     minimum_col  = int(0.01 * w)
     maximum_col  = int(w)
     circ         = 0.5
+    roi_thickness = 3
     sigma = 0.001 * w if not units_known else ((1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3)
 
 imp.close() # Close the calibration image
@@ -156,7 +160,7 @@ def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres
 
     # --- ROI Management ---
     def ROI_manager():
-        IJ.run("Roi Defaults...", "color=orange stroke=3.0 group=0")
+        IJ.run("Roi Defaults...", "color=orange stroke=" + str(roi_thickness) + " group=0")
         proc_imp.setRoi(OvalRoi(w/10, h/10, w/1.2, h/1.2))
         proc_imp.show()
 
@@ -260,6 +264,7 @@ print("Processing " + str(len(all_images)) + " images...")
 thresh_flag_score = True
 
 summary_path = os.path.join(output_directory, 'Summary.txt')
+summary_lines = []
 
 for i, img_path in enumerate(all_images):
     if not os.path.exists(img_path):
@@ -369,6 +374,7 @@ for i, img_path in enumerate(all_images):
                 # if res[3] == 'cm': area *= 100
                 # elif res[3] == 'inch': area = area * 2.54**2 * 100
                 f.write(str(area) + "\n")
+        f.close()
 
         def calculate_median_area(area_list):
             sorted_areas = sorted(area_list)
@@ -401,36 +407,37 @@ for i, img_path in enumerate(all_images):
             geom_mean_area = calculate_geometric_mean(area_list)
 
         # Write to Summary
-        mode = 'w' if is_global_first else 'a'
-        f_sum = open(summary_path, mode)
-        current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
-
-        metadata = '# countPHICS v' + macro_version + ' run: '+ current_time + '\n'
-
-        parameters = '# Parameters: \n' + \
-                    '# AutoThreshold= ' + str(threshold_flag) + '\n' + \
-                    '# SameROI=' + str(same_roi_flag) + '\n' + \
-                    '# SixWell=' + str(six_well_flag) + '\n' + \
-                    '# RollingBall=' + str(rolling_ball) + '\n' + \
-                    '# MinColony=' + str(minimum_col) + '\n' + \
-                    '# MaxColony=' + str(maximum_col) + '\n' + \
-                    '# Circularity=' + str(circ) + '\n' + \
-                    '# Sigma=' + str(sigma) + '\n'
-
-        header = (metadata + "\n" + parameters + "\n" + 'Image\tGroup\tNum colonies\tMedianSize\tGeomMeanSize\tMin Thresh\tMax Thresh\tImage ROI\n')
+        # mode = 'w' if is_global_first else 'a'
+        # f_sum = open(summary_path, mode)
         if is_global_first:
-                f_sum.write(header)
-                # f_sum.write("Image\tCount\tMinThresh\tMaxThresh\tROI")
-            
-        t_min = globals().get('thres_min', 0)
-        t_max = globals().get('thres_max', 0)
-        # f_sum.write(file_name_base + "\t" + group_name + "\t" + str(count) + "\t" + str(t_min) + "\t" + str(t_max) + "\t" + str(roi2) + "\n")
-        f_sum.write(file_name_base + ".tif\t" + group_name + "\t" + str(count) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(t_min) + "\t" + str(t_max) + "\t" + str(roi2) + "\n")
-        f_sum.close()
-        print(file_name_base + ": " + str(count))
+            current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+
+            metadata = '# countPHICS v' + macro_version + ' run: '+ current_time + '\n'
+
+            parameters = '# Parameters: \n' + \
+                        '# AutoThreshold= ' + str(threshold_flag) + '\n' + \
+                        '# SameROI=' + str(same_roi_flag) + '\n' + \
+                        '# SixWell=' + str(six_well_flag) + '\n' + \
+                        '# RollingBall=' + str(rolling_ball) + '\n' + \
+                        '# MinColony=' + str(minimum_col) + '\n' + \
+                        '# MaxColony=' + str(maximum_col) + '\n' + \
+                        '# Circularity=' + str(circ) + '\n' + \
+                        '# Sigma=' + str(sigma) + '\n'
+
+            header = (metadata + "\n" + parameters + "\n" + 'Image\tGroup\tNum colonies\tMedianSize\tGeomMeanSize\tMin Thresh\tMax Thresh\tImage ROI\n')
+            summary_lines.append(header)
+            t_min = globals().get('thres_min', 0)
+            t_max = globals().get('thres_max', 0)
+        
+        row = file_name_base + ".tif\t" + group_name + "\t" + str(count) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(t_min) + "\t" + str(t_max) + "\t" + str(roi2) + "\n"
+        summary_lines.append(row)
+        print("Processed file: " + file_name_base)
         if count > 10: thresh_flag_score = False
 
     imp.close()
+
+f_sum = open(summary_path, 'w')
+f_sum.writelines(summary_lines)
 
 WaitForUserDialog("Analysis complete!", "Results saved in:\n" + 
                   output_directory + 

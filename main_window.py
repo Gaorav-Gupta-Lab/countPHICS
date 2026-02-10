@@ -29,24 +29,31 @@ class FijiRunnerGUI(QMainWindow):
         self.process.readyReadStandardOutput.connect(self.handle_stdout)
         self.process.readyReadStandardError.connect(self.handle_stderr)
         self.process.finished.connect(self.process_finished)
-        self.input_edit = QLineEdit()
+
         self.console = QTextEdit()
-        self.output_edit = QLineEdit()
+
+        self.input_edit = QLineEdit()
         self.input_btn = QPushButton("Browse Input")
+        self.output_edit = QLineEdit()
         self.output_btn = QPushButton("Browse Output")
+
+        self.run_btn = QPushButton("▶ LAUNCH FIJI")
+        self.cancel_btn = QPushButton("CANCEL PROCESS")
+        self.exit_btn = QPushButton("✖ EXIT")
+        
+        # self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
+        self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
+        self.chk_six_well = QCheckBox("6-well plate analysis")
+        self.chk_plotting = QCheckBox("Generate plots after processing", checked=True)
+        self.chk_advanced = QCheckBox("Enable advanced settings")
+
         self.spin_rolling = QSpinBox()
         self.spin_min_col = QSpinBox()
         self.spin_max_col = QSpinBox()
         self.spin_circ = QDoubleSpinBox()
         self.spin_sigma = QDoubleSpinBox()
-        self.run_btn = QPushButton("▶ LAUNCH FIJI")
-        self.cancel_btn = QPushButton("CANCEL PROCESS")
-        self.exit_btn = QPushButton("✖ EXIT")
+        self.spin_roi_thickness = QSpinBox()
 
-        self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
-        self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
-        self.chk_six_well = QCheckBox("6-well plate analysis")
-        self.chk_advanced = QCheckBox("Enable advanced settings")
 
         self.init_ui()
 
@@ -105,17 +112,21 @@ class FijiRunnerGUI(QMainWindow):
         row2.addWidget(self.output_btn)
         layout.addLayout(row2)
 
+        # ---- Settings container (horizontal) ----
+        settings_container = QHBoxLayout()
+        
         # ---- General settings ----
         general_box = QGroupBox("General settings")
         general_layout = QVBoxLayout()
 
-        general_layout.addWidget(self.chk_auto_thresh)
+        # general_layout.addWidget(self.chk_auto_thresh)
         general_layout.addWidget(self.chk_same_roi)
         general_layout.addWidget(self.chk_six_well)
+        general_layout.addWidget(self.chk_plotting)
         general_layout.addWidget(self.chk_advanced)
 
         general_box.setLayout(general_layout)
-        layout.addWidget(general_box)
+        settings_container.addWidget(general_box)
 
         # ---- Advanced settings ----
         advanced_box = QGroupBox("Advanced Settings")
@@ -143,12 +154,17 @@ class FijiRunnerGUI(QMainWindow):
         self.spin_sigma.setValue(2.0)
         label_sigma = QLabel("Sigma:")
 
+        self.spin_roi_thickness.setRange(1, 20)
+        self.spin_roi_thickness.setValue(3)
+        label_roi_thickness = QLabel("ROI Thickness:")
+
         for spin in (
             self.spin_rolling,
             self.spin_min_col,
             self.spin_max_col,
             self.spin_circ,
             self.spin_sigma,
+            self.spin_roi_thickness
         ):
             spin.setFixedWidth(120)
 
@@ -158,6 +174,7 @@ class FijiRunnerGUI(QMainWindow):
             label_max_col_size,
             label_circularity,
             label_sigma,
+            label_roi_thickness
         ):
             label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
@@ -166,6 +183,7 @@ class FijiRunnerGUI(QMainWindow):
         self.spin_max_col.setToolTip("Maximum colony size (in pixels) to be counted.")
         self.spin_circ.setToolTip("Minimum circularity (0.0 - 1.0) for colony detection.")
         self.spin_sigma.setToolTip("Sigma value for Gaussian blur applied before colony detection.")
+        self.spin_roi_thickness.setToolTip("Thickness of the ROI border drawn around detected colonies.")
 
         advanced_layout.setColumnStretch(0, 0)  # label (left)
         advanced_layout.setColumnStretch(1, 0)  # spinbox (left)
@@ -182,10 +200,14 @@ class FijiRunnerGUI(QMainWindow):
         advanced_layout.addWidget(label_max_col_size, 0, 4); advanced_layout.addWidget(self.spin_max_col, 0, 5)
         advanced_layout.addWidget(label_circularity, 1, 0); advanced_layout.addWidget(self.spin_circ, 1, 1)
         advanced_layout.addWidget(label_sigma, 1, 2); advanced_layout.addWidget(self.spin_sigma, 1, 3)
+        advanced_layout.addWidget(label_roi_thickness, 1, 4); advanced_layout.addWidget(self.spin_roi_thickness, 1, 5)
 
         advanced_box.setLayout(advanced_layout)
         advanced_box.setVisible(False)
-        layout.addWidget(advanced_box)
+        settings_container.addWidget(advanced_box)
+        
+        # Add the horizontal settings container to the main layout
+        layout.addLayout(settings_container)
 
         self.chk_advanced.toggled.connect(advanced_box.setVisible)
 
@@ -281,10 +303,10 @@ class FijiRunnerGUI(QMainWindow):
         if text:
             base = Path(text)
         else:
-            base = input_path
-            self.output_edit.setText(input_path)
+            base = Path(input_path)
+            self.output_edit.setText(str(input_path))
 
-        output_path = (base / "countPHICS_output").resolve()
+        output_path = Path(base / "countPHICS_output").resolve()
         output_path.mkdir(parents=True, exist_ok=True)
 
         return output_path
@@ -296,7 +318,7 @@ class FijiRunnerGUI(QMainWindow):
             "input=" + str(input_path),
             "output=" + str(output_path),
 
-            "auto_threshold=" + str(self.chk_auto_thresh.isChecked()).lower(),
+            # "auto_threshold=" + str(self.chk_auto_thresh.isChecked()).lower(),
             "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
             "six_well=" + str(self.chk_six_well.isChecked()).lower(),
             "advanced=" + str(self.chk_advanced.isChecked()).lower(),
@@ -309,6 +331,7 @@ class FijiRunnerGUI(QMainWindow):
                 "max_colony=" + str(self.spin_max_col.value()),
                 "circularity=" + str(self.spin_circ.value()),
                 "sigma=" + str(self.spin_sigma.value()),
+                "roi_thickness=" + str(self.spin_roi_thickness.value())
             ])
 
         image_files = [
@@ -374,11 +397,20 @@ class FijiRunnerGUI(QMainWindow):
             "sun.reflect",
             "sun.rmi"
         ]
-        
+
+        key_keywords = [
+            "warning",
+            "Warning"
+        ]
         for line in data.splitlines():
             # Only log the line if NONE of the junk keywords are in it
-            if not any(key in line for key in junk_keywords):
-                self.log_to_console(line.strip(), "#eeec62")
+            if any(key in line for key in key_keywords):
+                self.log_to_console(line.strip(), "#d8a63b")
+                
+        # for line in data.splitlines():
+        #     # Only log the line if NONE of the junk keywords are in it
+        #     if not any(key in line for key in junk_keywords):
+        #         self.log_to_console(line.strip(), "#eeec62")
 
     def process_finished(self, exit_code, exit_status):
         color = "#5fb3b3" if exit_code == 0 else "#b6b6b6"
