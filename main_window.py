@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayo
                                QGridLayout)
 
 from PySide6.QtCore import QProcess, Qt
-from PySide6.QtGui import QTextCursor
+from PySide6.QtGui import QTextCursor, QIcon
 from ImageJ.macros.grapher import FIJIGrapher
 
 class FijiRunnerGUI(QMainWindow):
@@ -463,7 +463,20 @@ class FijiRunnerGUI(QMainWindow):
             )
 
 if __name__ == "__main__":
+
+    # ctypes allows the icon to be displayed correctly
+    import ctypes
+    if sys.platform == "win32":
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("countphics.app.1")
+
+    base_dir = Path(__file__).resolve().parent
+    icon_path = base_dir / "assets" / "countphics.ico"
+    
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(str(icon_path)))
+    
     window = FijiRunnerGUI()
+    window.setWindowIcon(QIcon(str(icon_path)))
     window.show()
+
     sys.exit(app.exec())
