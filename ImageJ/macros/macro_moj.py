@@ -16,7 +16,7 @@ import os
 import sys
 import math
 
-macro_version = '2.2.1'
+macro_version = '2.2.2'
 
 # --- 1. Parameter Parsing ---
 def parse_parameter_file():
@@ -155,6 +155,7 @@ def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres
     elif std_max == stats_green: proc_imp = green
     else: proc_imp = blue
 
+    proc_imp.removeScale()
     proc_imp.getProcessor().blurGaussian(sigma)
     BackgroundSubtracter().subtractBackround(proc_imp.getProcessor(), int(rolling_ball))
 
@@ -369,7 +370,7 @@ for i, img_path in enumerate(all_images):
         f.write("Colony Area\n")
 
         if area_list:
-            area_list = [area * 645.16 * 100 for area in area_list]  # convert from pixels^2 to mm^2
+            # area_list = [area * 645.16 * 100 for area in area_list]  # convert from pixels^2 to mm^2
             for area in area_list:
                 # if res[3] == 'cm': area *= 100
                 # elif res[3] == 'inch': area = area * 2.54**2 * 100
@@ -400,11 +401,13 @@ for i, img_path in enumerate(all_images):
                     continue
                 log_sum += math.log(area)
 
-            return math.exp(log_sum / n)
+            return round(math.exp(log_sum / n), 2)
 
         if count > 0:
             median_area = calculate_median_area(area_list)
             geom_mean_area = calculate_geometric_mean(area_list)
+            min_area = int(min(area_list))
+            max_area = int(max(area_list))
 
         # Write to Summary
         # mode = 'w' if is_global_first else 'a'
@@ -414,6 +417,9 @@ for i, img_path in enumerate(all_images):
 
             metadata = '# countPHICS v' + macro_version + ' run: '+ current_time + '\n'
 
+            t_min = globals().get('thres_min', 0)
+            t_max = globals().get('thres_max', 0)
+
             parameters = '# Parameters: \n' + \
                         '# AutoThreshold= ' + str(threshold_flag) + '\n' + \
                         '# SameROI=' + str(same_roi_flag) + '\n' + \
@@ -422,14 +428,14 @@ for i, img_path in enumerate(all_images):
                         '# MinColony=' + str(minimum_col) + '\n' + \
                         '# MaxColony=' + str(maximum_col) + '\n' + \
                         '# Circularity=' + str(circ) + '\n' + \
-                        '# Sigma=' + str(sigma) + '\n'
+                        '# Sigma=' + str(sigma) + '\n' \
+                        '# MinThresh=' + str(t_min) + '\n' \
+                        '# MaxThresh=' + str(t_max)
 
-            header = (metadata + "\n" + parameters + "\n" + 'Image\tGroup\tNum colonies\tMedianSize\tGeomMeanSize\tMin Thresh\tMax Thresh\tImage ROI\n')
+            header = (metadata + "\n" + parameters + '\n' + "\n" + 'Image\tGroup\tNum colonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\tImage ROI\n')
             summary_lines.append(header)
-            t_min = globals().get('thres_min', 0)
-            t_max = globals().get('thres_max', 0)
         
-        row = file_name_base + ".tif\t" + group_name + "\t" + str(count) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(t_min) + "\t" + str(t_max) + "\t" + str(roi2) + "\n"
+        row = file_name_base + ".tif\t" + group_name + "\t" + str(count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(roi2) + "\n"
         summary_lines.append(row)
         print("Processed file: " + file_name_base)
         if count > 10: thresh_flag_score = False

@@ -45,7 +45,7 @@ class FijiRunnerGUI(QMainWindow):
         self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
         self.chk_six_well = QCheckBox("6-well plate analysis")
         self.chk_plotting = QCheckBox("Generate plots after processing", checked=True)
-        self.chk_advanced = QCheckBox("Enable advanced settings")
+        self.chk_advanced = QCheckBox("Enable advanced settings", checked=True)
 
         self.spin_rolling = QSpinBox()
         self.spin_min_col = QSpinBox()
@@ -185,25 +185,25 @@ class FijiRunnerGUI(QMainWindow):
         self.spin_sigma.setToolTip("Sigma value for Gaussian blur applied before colony detection.")
         self.spin_roi_thickness.setToolTip("Thickness of the ROI border drawn around detected colonies.")
 
-        advanced_layout.setColumnStretch(0, 0)  # label (left)
-        advanced_layout.setColumnStretch(1, 0)  # spinbox (left)
+        # advanced_layout.setColumnStretch(0, 0)  # label (left)
+        # advanced_layout.setColumnStretch(1, 0)  # spinbox (left)
 
-        advanced_layout.setColumnStretch(2, 1)  # empty space
-        # advanced_layout.setColumnStretch(3, 1)  # empty space
-        advanced_layout.setColumnStretch(4, 1)  # empty space
+        # advanced_layout.setColumnStretch(2, 1)  # empty space
+        # # advanced_layout.setColumnStretch(3, 1)  # empty space
+        # advanced_layout.setColumnStretch(4, 1)  # empty space
 
-        advanced_layout.setColumnStretch(5, 0)  # label (right)
-        advanced_layout.setColumnStretch(6, 0)  # spinbox (right)
+        # advanced_layout.setColumnStretch(5, 0)  # label (right)
+        # advanced_layout.setColumnStretch(6, 0)  # spinbox (right)
 
         advanced_layout.addWidget(label_rolling_radius, 0, 0); advanced_layout.addWidget(self.spin_rolling, 0, 1)
         advanced_layout.addWidget(label_min_col_size, 0, 2); advanced_layout.addWidget(self.spin_min_col, 0, 3)
-        advanced_layout.addWidget(label_max_col_size, 0, 4); advanced_layout.addWidget(self.spin_max_col, 0, 5)
+        advanced_layout.addWidget(label_max_col_size, 1, 2); advanced_layout.addWidget(self.spin_max_col, 1, 3)
         advanced_layout.addWidget(label_circularity, 1, 0); advanced_layout.addWidget(self.spin_circ, 1, 1)
-        advanced_layout.addWidget(label_sigma, 1, 2); advanced_layout.addWidget(self.spin_sigma, 1, 3)
+        advanced_layout.addWidget(label_sigma, 0, 4); advanced_layout.addWidget(self.spin_sigma, 0, 5)
         advanced_layout.addWidget(label_roi_thickness, 1, 4); advanced_layout.addWidget(self.spin_roi_thickness, 1, 5)
 
         advanced_box.setLayout(advanced_layout)
-        advanced_box.setVisible(False)
+        advanced_box.setVisible(True)
         settings_container.addWidget(advanced_box)
         
         # Add the horizontal settings container to the main layout
