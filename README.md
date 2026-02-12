@@ -1,6 +1,6 @@
 # countPHICS2 - Colony Counter Interface
 
-A Python-based graphical interface for automated bacterial colony counting and analysis using FIJI/ImageJ. This tool provides a user-friendly GUI for processing microscopy images of bacterial colonies with advanced image analysis, statistical visualization, and batch processing capabilities.<br>
+A Python-based graphical interface for automated bacterial colony counting and analysis using FIJI/ImageJ. This tool provides a user-friendly GUI for processing images of bacterial colonies with advanced image analysis, statistical visualization, and batch processing capabilities.<br>
 **Originally developed by Beata Brzozowska and published DOI: 10.1007/s00411-018-00772-z.**
 
 ## Overview
