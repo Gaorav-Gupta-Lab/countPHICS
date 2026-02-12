@@ -1,6 +1,6 @@
 # countPHICS2 - Colony Counter Interface
 
-A Python-based graphical interface for automated bacterial colony counting and analysis using FIJI/ImageJ. This tool provides a user-friendly GUI for processing microscopy images of bacterial colonies with advanced image analysis, statistical visualization, and batch processing capabilities.
+A Python-based graphical interface for automated bacterial colony counting and analysis using FIJI/ImageJ. This tool provides a user-friendly GUI for processing microscopy images of bacterial colonies with advanced image analysis, statistical visualization, and batch processing capabilities.<br>
 **Originally developed by Beata Brzozowska and published DOI: 10.1007/s00411-018-00772-z.**
 
 ## Overview
@@ -84,7 +84,7 @@ python main_window.py
         - Example image:<br>
             <img src=examples/example.png alt="drawing" width="300"/>
    - Click "Browse Input" to select a folder containing your `.tif` or `.tiff` images
-   - Images should be RGB microscopy images of bacterial colonies
+   - Images should be RGB images of bacterial colonies
 
 2. **Choose output location** (optional)
    - Click "Browse Output" to specify where results should be saved
@@ -212,7 +212,7 @@ The `grapher.py` module provides powerful analysis capabilities using `matplotli
 ### Statistical Features
 
 - **Weibull distribution fitting** - Maximum likelihood estimation for colony size distributions
-- **Kolmogorov-Smirnov test** - Goodness-of-fit assessment
+- **Kolmogorov-Smirnov test** - Goodness-of-fit assessment with p-value
 - **Descriptive statistics** - Mean, median, quartiles, std deviation
 - **Metadata annotation** - Plots include macro version and runtime information
 
@@ -233,7 +233,7 @@ The FIJI macro (`macro_moj.py`) performs the following steps:
 ### 6-Well Plate Mode (Beta)
 
 When enabled, the macro:
-- Automatically divides the image into 6 equal regions (3 rows × 2 columns)
+- Automatically divides the image into 6 equal regions (2 rows × 3 columns)
 - Processes each well independently
 - Generates separate counts and statistics per well
 - Useful for high-throughput screening
@@ -290,7 +290,7 @@ Colony size distributions often follow Weibull distributions. The grapher fits a
 
 - **Shape parameter (k)**: Controls distribution shape
 - **Scale parameter (λ)**: Characteristic size
-- **KS test p-value**: Assesses goodness of fit (p > 0.05 suggests good fit)
+- **KS test p-value**: Assesses goodness of fit (p < 0.05 suggests good fit)
 
 ## Citation
 
