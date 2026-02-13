@@ -62,12 +62,6 @@ countPHICS/
 ```
 
 ## Usage
-
-**Configure FIJI path** (optional)
-   - If you wish to use your personal FIJI installation instead of the prepackaged version, manually configure the executable path parior to launch.
-   - On Windows: typically `C:\Program Files\Fiji.app\ImageJ-win64.exe`
-   - On macOS: typically `/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx`
-   - On Linux: varies by installation
 ### Starting the Application
 
 Double click batch file in downloaded directory or run terminal command:
