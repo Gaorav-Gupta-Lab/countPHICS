@@ -1,0 +1,12 @@
+input=C:/Users/Paolo_Lab/Downloads/testing/imgs_white
+output=C:\Users\Paolo_Lab\Downloads\testing\imgs_short\countPHICS_output
+same_roi=true
+six_well=false
+group_assignment=automatic
+rolling_ball=62
+min_colony=150
+max_colony=10000
+circularity=0.5
+sigma=2.0
+roi_thickness=3
+images=C:\Users\Paolo_Lab\Downloads\testing\imgs_white\23.tif;C:\Users\Paolo_Lab\Downloads\testing\imgs_white\24.tif;C:\Users\Paolo_Lab\Downloads\testing\imgs_white\25.tif;C:\Users\Paolo_Lab\Downloads\testing\imgs_white\33.tif;C:\Users\Paolo_Lab\Downloads\testing\imgs_white\33p.png

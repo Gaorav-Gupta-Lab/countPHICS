@@ -10,18 +10,18 @@ import datetime
 import matplotlib.pyplot as plt
 import natsort
 
-import json
-
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
     QFileDialog, QCheckBox, QSpinBox, QGroupBox, QDoubleSpinBox, QLineEdit, QLabel,
     QGridLayout, QDialog, QMessageBox, QScrollArea, QSizePolicy
 )
 
-from PySide6.QtCore import QProcess, Qt
+from PySide6.QtCore import QProcess, Qt, QSignalBlocker
 from PySide6.QtGui import QTextCursor, QIcon
+from typer import edit
 
 from ImageJ.macros.grapher import FIJIGrapher
+from PySide6.QtWidgets import QComboBox
 
 class GroupAssignmentDialog(QDialog):
     """
@@ -33,6 +33,7 @@ class GroupAssignmentDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Manual Group Assignment")
         self.image_paths = image_paths
+        self.setStyleSheet(FijiRunnerGUI.load_stylesheet())
 
         self.group_edits: list[QLineEdit] = []
         self.same_as_above_checks: list[QCheckBox] = []
@@ -55,7 +56,7 @@ class GroupAssignmentDialog(QDialog):
 
         content = QWidget()
         grid = QGridLayout(content)
-        grid.setColumnStretch(0, 3)
+        grid.setColumnStretch(0, 2)
         grid.setColumnStretch(1, 2)
         grid.setColumnStretch(2, 1)
         grid.setHorizontalSpacing(12)
@@ -63,7 +64,7 @@ class GroupAssignmentDialog(QDialog):
 
         grid.addWidget(QLabel("<b>Image</b>"), 0, 0)
         grid.addWidget(QLabel("<b>Group</b>"), 0, 1)
-        grid.addWidget(QLabel("<b>Same as above</b>"), 0, 2)
+        grid.addWidget(QLabel("<b>Same as above</b>"), 0, 2, alignment=Qt.AlignCenter)
 
         for i, p in enumerate(self.image_paths, start=1):
             img_label = QLabel(Path(p).name)
@@ -71,7 +72,7 @@ class GroupAssignmentDialog(QDialog):
             img_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
             group_edit = QLineEdit()
-            group_edit.setPlaceholderText("e.g., WT, KO, +TSA, etc.")
+            group_edit.setPlaceholderText("e.g., WT, KO, +Drug, etc.")
             same_chk = QCheckBox()
 
             self.group_edits.append(group_edit)
@@ -94,7 +95,9 @@ class GroupAssignmentDialog(QDialog):
         btn_row.addStretch(1)
 
         self.continue_btn = QPushButton("Continue")
+        self.continue_btn.setObjectName("browse_btn")
         self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setObjectName("browse_btn")
         self.continue_btn.clicked.connect(self._validate_and_accept)
         self.cancel_btn.clicked.connect(self.reject)
 
@@ -104,6 +107,33 @@ class GroupAssignmentDialog(QDialog):
 
         self.resize(900, 600)
 
+    def _on_group_text_changed(self, idx: int):
+        """
+        Whenever a group text changes, update any downstream rows that are
+        currently "same as above" linked (directly or via a chain).
+        """
+        self._propagate_from(idx)
+
+    def _propagate_from(self, start_idx: int):
+        """
+        Push the effective group value from start_idx to subsequent rows
+        that are checked "same as above", until the chain breaks.
+        """
+        # Determine the source value to propagate (effective text at start_idx)
+        src_text = self.group_edits[start_idx].text()
+
+        # Walk downward, updating linked rows
+        for j in range(start_idx + 1, len(self.group_edits)):
+            if not self.same_as_above_checks[j].isChecked():
+                break  # chain stops at first unchecked row
+
+            edit = self.group_edits[j]
+
+            # Avoid recursive signal loops + unnecessary work
+            if edit.text() != src_text:
+                with QSignalBlocker(edit):
+                    edit.setText(src_text)
+
     def _on_same_as_above_toggled(self, idx: int, checked: bool):
         """
         If checked: copy group from previous row, disable + visually gray out.
@@ -112,13 +142,25 @@ class GroupAssignmentDialog(QDialog):
         edit = self.group_edits[idx]
 
         if checked:
-            prev = self.group_edits[idx - 1].text().strip()
-            edit.setText(prev)
+            # lock it
             edit.setEnabled(False)
-            edit.setStyleSheet("background-color: #2a2a2a; color: #9aa0a6;")
+            edit.setProperty("same_as_above_locked", True)
+
+            # set to the effective value of the row above (and propagate further)
+            above_text = self.group_edits[idx - 1].text()
+            with QSignalBlocker(edit):
+                edit.setText(above_text)
+            self._propagate_from(idx - 1)
+
         else:
             edit.setEnabled(True)
-            edit.setStyleSheet("")
+            edit.setProperty("same_as_above_locked", False)
+            # optional: clear when unlocking
+            # edit.clear()
+
+        edit.style().unpolish(edit)
+        edit.style().polish(edit)
+        edit.update()
 
     def _validate_and_accept(self):
         """
@@ -148,19 +190,19 @@ class GroupAssignmentDialog(QDialog):
 
         self.accept()
 
-    def get_group_map(self) -> dict[str, list[str]]:
+    def get_group_map(self) -> dict[str, str]:
         """
-        Returns: {group_name: [image_path, ...], ...}
+        Returns: {image_path: group_name, ...}
         """
         # Ensure "same as above" is propagated
         for i in range(1, len(self.image_paths)):
             if self.same_as_above_checks[i].isChecked():
                 self.group_edits[i].setText(self.group_edits[i - 1].text().strip())
 
-        out: dict[str, list[str]] = {}
+        out: dict[str, str] = {}
         for p, edit in zip(self.image_paths, self.group_edits):
             g = edit.text().strip()
-            out.setdefault(g, []).append(p)
+            out[p] = g
         return out
 
 
@@ -198,7 +240,9 @@ class FijiRunnerGUI(QMainWindow):
         self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
         self.chk_six_well = QCheckBox("6-well plate analysis")
         self.chk_plotting = QCheckBox("Generate plots after processing", checked=True)
-        self.chk_group_assignment = QCheckBox("Manual group assignment")
+        self.group_assignment_label = QLabel("Group assignment:")
+        self.combo_group_assignment = QComboBox()
+        self.combo_group_assignment.addItems(["None", "Automatic", "Manual"])
 
         self.spin_rolling = QSpinBox()
         self.spin_min_col = QSpinBox()
@@ -274,7 +318,10 @@ class FijiRunnerGUI(QMainWindow):
         general_layout.addWidget(self.chk_same_roi)
         general_layout.addWidget(self.chk_six_well)
         general_layout.addWidget(self.chk_plotting)
-        general_layout.addWidget(self.chk_group_assignment)
+
+        self.group_assignment_label.setObjectName("group_assignment_label")
+        general_layout.addWidget(self.group_assignment_label)
+        general_layout.addWidget(self.combo_group_assignment)
 
         general_box.setLayout(general_layout)
         settings_container.addWidget(general_box, 1)
@@ -460,7 +507,11 @@ class FijiRunnerGUI(QMainWindow):
 
 
     def write_config(self, input_path, output_path, group_map: dict[str, list[str]] | None = None):
-        config_path = output_path / "countPHICS_params.txt"
+        # config_path = output_path / "countPHICS_params.txt"
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        config_dir = os.path.join(base_path, "config_dir")
+        os.makedirs(config_dir, exist_ok=True)
+        config_path = f"{config_dir}{os.sep}countPHICS_params.txt"
 
         lines = [
             "input=" + str(input_path),
@@ -468,7 +519,7 @@ class FijiRunnerGUI(QMainWindow):
 
             "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
             "six_well=" + str(self.chk_six_well.isChecked()).lower(),
-            "manual_group_assignment=" + str(self.chk_group_assignment.isChecked()).lower(),
+            "group_assignment=" + str(self.combo_group_assignment.currentText()).lower(),
 
             "rolling_ball=" + str(self.spin_rolling.value()),
             "min_colony=" + str(self.spin_min_col.value()),
@@ -484,7 +535,11 @@ class FijiRunnerGUI(QMainWindow):
         # Write groups as a dictionary: group_name -> [image_path, ...]
         # Stored as JSON so it's unambiguous to parse later.
         if group_map is not None:
-            lines.append("groups=" + json.dumps(group_map))
+            # lines.append("groups=" + json.dumps(group_map))
+            entries = []
+            for img_path, group in group_map.items():
+                entries.append(f"{img_path}|||{group}")
+            lines.append("groups=" + ";;".join(entries))
 
         with open(config_path, "w") as f:
             f.write("\n".join(lines))
@@ -517,7 +572,7 @@ class FijiRunnerGUI(QMainWindow):
             return
 
         group_map = None
-        if self.chk_group_assignment.isChecked():
+        if self.combo_group_assignment.currentText() == "Manual":
             dlg = GroupAssignmentDialog(image_files, parent=self)
             if dlg.exec() != QDialog.Accepted:
                 self.log_to_console("Launch canceled during group assignment.", "#d8a63b")
@@ -557,11 +612,10 @@ class FijiRunnerGUI(QMainWindow):
 
         key_keywords = [
             "warning",
-            "Warning"
         ]
         for line in data.splitlines():
             # Only log the line if NONE of the junk keywords are in it
-            if any(key in line for key in key_keywords):
+            if any(key in line.lower() for key in key_keywords):
                 self.log_to_console(line.strip(), "#d8a63b")
                 
         # for line in data.splitlines():
@@ -635,9 +689,9 @@ class FijiRunnerGUI(QMainWindow):
 if __name__ == "__main__":
 
     # ctypes allows the icon to be displayed correctly
-    # import ctypes
-    # if sys.platform == "win32":
-    #     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("countphics.app.1")
+    import ctypes
+    if sys.platform == "win32":
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("countphics.app.1")
 
     base_dir = Path(__file__).resolve().parent
     icon_path = base_dir / "assets" / "countphics.ico"

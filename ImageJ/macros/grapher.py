@@ -58,7 +58,7 @@ class FIJIGrapher:
 
             self.metadata = self._parse_metadata(header_line)
 
-            print(f"Parsed metadata: {self.metadata}")
+            # print(f"Parsed metadata: {self.metadata}")
 
             self.data = pd.read_csv(
                 filepath,
@@ -68,9 +68,9 @@ class FIJIGrapher:
                 skip_blank_lines=True
             )
 
-            print(
-                f"Loaded {len(self.data)} rows from {filepath.name}"
-            )
+            # print(
+            #     f"Loaded {len(self.data)} rows from {filepath.name}"
+            # )
 
         except Exception as e:
             print(f"Failed to load data: {e}")
@@ -87,7 +87,7 @@ class FIJIGrapher:
         split_header = header_line.split(" ")
         parts["macro_version"] = split_header[2]
         parts["run_datetime"] = split_header[4] + " " + split_header[5]
-        print(parts)
+        # print(parts)
 
         return FijiRunMetadata(
             macro_version=parts.get("macro_version", "version_unknown"),
@@ -110,9 +110,9 @@ class FIJIGrapher:
                 skiprows=skiprows
             )
 
-            print(
-                f"Loaded {len(self.data)} rows from {filepath.name}"
-            )
+            # print(
+            #     f"Loaded {len(self.data)} rows from {filepath.name}"
+            # )
 
             return self.data
 

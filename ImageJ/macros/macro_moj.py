@@ -20,9 +20,17 @@ macro_version = '2.2.3'
 
 # --- 1. Parameter Parsing ---
 def parse_parameter_file():
-    od = OpenDialog("Select countPHICS parameter file", None)
-    param_dir = od.getDirectory()
-    param_name = od.getFileName()
+    # od = OpenDialog("Select countPHICS parameter file", None)
+    # param_dir = od.getDirectory()
+    # print("Pparam_dir: " + param_dir)
+    # param_name = od.getFileName()
+    # print("Pparam_name: " + param_name)
+
+    param_dir = "C:\\Users\\Paolo_Lab\\OneDrive - University of North Carolina at Chapel Hill\\Desktop\\prog\\GuptaLab\\countPHICS2\\config_dir\\"
+ 
+    param_name = "countPHICS_params.txt"
+
+
 
     if param_dir is None or param_name is None:
         IJ.log("No parameter file selected. Aborting.")
@@ -55,6 +63,7 @@ def parse_parameter_file():
 params = parse_parameter_file()
 output_directory = params.get("output")
 images_raw = params.get("images")
+
 
 if not images_raw or not output_directory:
     IJ.log("Missing required parameters (images or output). Aborting.")
@@ -94,6 +103,24 @@ else:
 threshold_flag = as_bool(params.get("auto_threshold"))
 same_roi_flag = as_bool(params.get("same_roi"))
 six_well_flag = as_bool(params.get("six_well"))
+group_handling = params.get("group_assignment", "None").lower()  # "none", "automatic", or "manual"
+
+# GROUP ASSIGNMENT
+if group_handling == "manual":
+    group_assignment_str = params.get("groups", "")
+    group_assignment_dict = {}
+
+    if group_assignment_str:
+        for entry in group_assignment_str.split(";;"):
+            entry = entry.strip()
+            if not entry:
+                continue
+            if '|||' not in entry:
+                continue
+            img_path, group = entry.split("|||", 1)
+            img_path = img_path.replace("/", "\\").strip()
+            group = group.strip()
+            group_assignment_dict[img_path] = group
 
 if six_well_flag:
     w = imp.getWidth()/2
@@ -105,20 +132,13 @@ else:
 # Advanced Parameters
 rolling_ball = int(params.get("rolling_ball", int(w * 0.0306)))
 minimum_col  = int(params.get("min_colony", int(0.01 * w)))
-maximum_col  = int(params.get("max_colony", int(w)))
+maximum_col  = int(params.get("max_colony", int(w * 2)))
 circ         = float(params.get("circularity", 0.5))
 roi_thickness = int(params.get("roi_thickness", 3))
 if not units_known:
     sigma = float(params.get("sigma", 0.001 * w))
 else:
     sigma = float(params.get("sigma", (1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3))
-# else:
-#     rolling_ball = int(w * 0.0306)
-#     minimum_col  = int(0.01 * w)
-#     maximum_col  = int(w)
-#     circ         = 0.5
-#     roi_thickness = 3
-#     sigma = 0.001 * w if not units_known else ((1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3)
 
 imp.close() # Close the calibration image
 
@@ -338,9 +358,6 @@ for i, img_path in enumerate(all_images):
 
     # --- Standard Single Image Logic ---
     else:
-        # out_name = file_name_base + "size_distribution" + ".txt"
-        # out_path = os.path.join(output_directory, out_name)
-
         size_output_file_name = file_name_base + "_size_distribution.txt"
         size_output_path = os.path.join(output_directory, "size_distribution_files/", size_output_file_name)
 
@@ -352,9 +369,13 @@ for i, img_path in enumerate(all_images):
         if not os.path.exists(os.path.dirname(image_output_path)):
             os.makedirs(os.path.dirname(image_output_path))
 
-        group_name = file_name_base[:file_name_base.rfind('_')] if '_' in file_name_base else file_name_base
-        # print("Group Name: " + group_name + " for image: " + file_name_base)
-        
+        if group_handling == "automatic":
+            group_name = file_name_base[:file_name_base.rfind('_')] if '_' in file_name_base else file_name_base
+        elif group_handling == "none":
+            group_name = "unassigned"
+        elif group_handling == "manual":
+            group_name = group_assignment_dict.get(img_path, "unassigned")
+
         res = count_colonies(imp, img_path, is_global_first, same_roi_flag, 
                              threshold_flag, thresh_flag_score, image_output_path)
         
@@ -364,15 +385,10 @@ for i, img_path in enumerate(all_images):
         # Write single image colony distribution file
         f = open(size_output_path, 'w')
         f.write("Number of colonies: " + str(count) + "\n")
-        # f.write("Units: " + res[3] + "\n")
         f.write("Colony Area\n")
 
         if area_list:
-            # area_list = [area * 645.16 * 100 for area in area_list]  # convert from pixels^2 to mm^2
-            for area in area_list:
-                # if res[3] == 'cm': area *= 100
-                # elif res[3] == 'inch': area = area * 2.54**2 * 100
-                f.write(str(area) + "\n")
+            f.write("\n".join(str(area) for area in area_list) + "\n")
         f.close()
 
         def calculate_median_area(area_list):
@@ -408,8 +424,6 @@ for i, img_path in enumerate(all_images):
             max_area = int(max(area_list))
 
         # Write to Summary
-        # mode = 'w' if is_global_first else 'a'
-        # f_sum = open(summary_path, mode)
         if is_global_first:
             current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
 
@@ -430,7 +444,7 @@ for i, img_path in enumerate(all_images):
                         '# MinThresh=' + str(t_min) + '\n' \
                         '# MaxThresh=' + str(t_max)
 
-            header = (metadata + "\n" + parameters + '\n' + "\n" + 'Image\tGroup\tNum colonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\tImage ROI\n')
+            header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tNum colonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\tImage ROI\n')
             summary_lines.append(header)
         
         row = file_name_base + ".tif\t" + group_name + "\t" + str(count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(roi2) + "\n"
