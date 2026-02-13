@@ -10,20 +10,173 @@ import datetime
 import matplotlib.pyplot as plt
 import natsort
 
-from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
-                               QFileDialog, QCheckBox, QSpinBox, QGroupBox, QDoubleSpinBox, QLineEdit, QLabel,
-                               QGridLayout)
+import json
+
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
+    QFileDialog, QCheckBox, QSpinBox, QGroupBox, QDoubleSpinBox, QLineEdit, QLabel,
+    QGridLayout, QDialog, QMessageBox, QScrollArea, QSizePolicy
+)
 
 from PySide6.QtCore import QProcess, Qt
 from PySide6.QtGui import QTextCursor, QIcon
+
 from ImageJ.macros.grapher import FIJIGrapher
+
+class GroupAssignmentDialog(QDialog):
+    """
+    Modal dialog allowing the user to assign a group name per image.
+    Includes "same as above" behavior that copies/locks the group field.
+    """
+
+    def __init__(self, image_paths: list[str], parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Manual Group Assignment")
+        self.image_paths = image_paths
+
+        self.group_edits: list[QLineEdit] = []
+        self.same_as_above_checks: list[QCheckBox] = []
+
+        self._init_ui()
+
+    def _init_ui(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(16, 16, 16, 16)
+        outer.setSpacing(10)
+
+        header = QLabel("Assign a sample group for each image:")
+        header.setStyleSheet("font-weight: 600;")
+        outer.addWidget(header)
+
+        # Scroll area so large image sets don't explode the window
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        outer.addWidget(scroll, 1)
+
+        content = QWidget()
+        grid = QGridLayout(content)
+        grid.setColumnStretch(0, 3)
+        grid.setColumnStretch(1, 2)
+        grid.setColumnStretch(2, 1)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(8)
+
+        grid.addWidget(QLabel("<b>Image</b>"), 0, 0)
+        grid.addWidget(QLabel("<b>Group</b>"), 0, 1)
+        grid.addWidget(QLabel("<b>Same as above</b>"), 0, 2)
+
+        for i, p in enumerate(self.image_paths, start=1):
+            img_label = QLabel(Path(p).name)
+            img_label.setToolTip(p)
+            img_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+            group_edit = QLineEdit()
+            group_edit.setPlaceholderText("e.g., WT, KO, +TSA, etc.")
+            same_chk = QCheckBox()
+
+            self.group_edits.append(group_edit)
+            self.same_as_above_checks.append(same_chk)
+
+            # First row can't be "same as above"
+            if i == 1:
+                same_chk.setEnabled(False)
+
+            same_chk.toggled.connect(lambda checked, idx=i - 1: self._on_same_as_above_toggled(idx, checked))
+
+            grid.addWidget(img_label, i, 0)
+            grid.addWidget(group_edit, i, 1)
+            grid.addWidget(same_chk, i, 2, alignment=Qt.AlignCenter)
+
+        scroll.setWidget(content)
+
+        # Buttons
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+
+        self.continue_btn = QPushButton("Continue")
+        self.cancel_btn = QPushButton("Cancel")
+        self.continue_btn.clicked.connect(self._validate_and_accept)
+        self.cancel_btn.clicked.connect(self.reject)
+
+        btn_row.addWidget(self.continue_btn)
+        btn_row.addWidget(self.cancel_btn)
+        outer.addLayout(btn_row)
+
+        self.resize(900, 600)
+
+    def _on_same_as_above_toggled(self, idx: int, checked: bool):
+        """
+        If checked: copy group from previous row, disable + visually gray out.
+        If unchecked: enable editing again.
+        """
+        edit = self.group_edits[idx]
+
+        if checked:
+            prev = self.group_edits[idx - 1].text().strip()
+            edit.setText(prev)
+            edit.setEnabled(False)
+            edit.setStyleSheet("background-color: #2a2a2a; color: #9aa0a6;")
+        else:
+            edit.setEnabled(True)
+            edit.setStyleSheet("")
+
+    def _validate_and_accept(self):
+        """
+        Validate:
+        - each effective group must be non-empty
+        - "same as above" rows require the above row to have a group
+        """
+        # Force-update "same as above" rows in case user edited the above row after checking
+        for i in range(1, len(self.image_paths)):
+            if self.same_as_above_checks[i].isChecked():
+                self.group_edits[i].setText(self.group_edits[i - 1].text().strip())
+
+        missing = []
+        for i, p in enumerate(self.image_paths):
+            g = self.group_edits[i].text().strip()
+            if not g:
+                missing.append(Path(p).name)
+
+        if missing:
+            QMessageBox.warning(
+                self,
+                "Missing group names",
+                "Every image needs a group name.\n\nMissing:\n- " + "\n- ".join(missing[:20]) +
+                ("\n\n(…and more)" if len(missing) > 20 else "")
+            )
+            return
+
+        self.accept()
+
+    def get_group_map(self) -> dict[str, list[str]]:
+        """
+        Returns: {group_name: [image_path, ...], ...}
+        """
+        # Ensure "same as above" is propagated
+        for i in range(1, len(self.image_paths)):
+            if self.same_as_above_checks[i].isChecked():
+                self.group_edits[i].setText(self.group_edits[i - 1].text().strip())
+
+        out: dict[str, list[str]] = {}
+        for p, edit in zip(self.image_paths, self.group_edits):
+            g = edit.text().strip()
+            out.setdefault(g, []).append(p)
+        return out
+
 
 class FijiRunnerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Colony Counter Interface")
-        self.resize(1000, 800)
-        # self.setStyleSheet(STYLE_SHEET)
+
+        screen = self.screen()
+        screen_geometry = screen.geometry()
+        width = int(screen_geometry.width() * 0.7)
+        height = int(screen_geometry.height() * 0.7)
+        self.resize(width, height)
+
+        # self.resize(1000, 700)
+
         self.setStyleSheet(self.load_stylesheet())
         self.process = QProcess(self)
         self.process.readyReadStandardOutput.connect(self.handle_stdout)
@@ -45,7 +198,7 @@ class FijiRunnerGUI(QMainWindow):
         self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
         self.chk_six_well = QCheckBox("6-well plate analysis")
         self.chk_plotting = QCheckBox("Generate plots after processing", checked=True)
-        self.chk_advanced = QCheckBox("Enable advanced settings", checked=True)
+        self.chk_group_assignment = QCheckBox("Manual group assignment")
 
         self.spin_rolling = QSpinBox()
         self.spin_min_col = QSpinBox()
@@ -90,13 +243,12 @@ class FijiRunnerGUI(QMainWindow):
         layout.addWidget(self.console)
 
         # Input path
-        # self.input_edit.setPlaceholderText("Select first image…")
         self.input_edit.setPlaceholderText("Select Folder Containing Images")
         self.input_btn.setObjectName("browse_btn")
         self.input_btn.clicked.connect(self.select_input_folder)
 
         row1 = QHBoxLayout()
-        row1.addWidget(QLabel("Input image:"))
+        row1.addWidget(QLabel("Input folder:"))
         row1.addWidget(self.input_edit)
         row1.addWidget(self.input_btn)
         layout.addLayout(row1)
@@ -115,27 +267,25 @@ class FijiRunnerGUI(QMainWindow):
         # ---- Settings container (horizontal) ----
         settings_container = QHBoxLayout()
         
-        # ---- General settings ----
+        # ---- GENERAL SETTINGS ----
         general_box = QGroupBox("General settings")
         general_layout = QVBoxLayout()
 
-        # general_layout.addWidget(self.chk_auto_thresh)
         general_layout.addWidget(self.chk_same_roi)
         general_layout.addWidget(self.chk_six_well)
         general_layout.addWidget(self.chk_plotting)
-        general_layout.addWidget(self.chk_advanced)
+        general_layout.addWidget(self.chk_group_assignment)
 
         general_box.setLayout(general_layout)
-        settings_container.addWidget(general_box)
+        settings_container.addWidget(general_box, 1)
 
-        # ---- Advanced settings ----
+        # ---- ADVANCED SETTINGS ----
         advanced_box = QGroupBox("Advanced Settings")
         advanced_layout = QGridLayout()
 
         self.spin_rolling.setRange(1, 10000)
         self.spin_rolling.setValue(62)
         label_rolling_radius = QLabel("Rolling Ball Radius:")
-
 
         self.spin_min_col.setRange(1, 100000)
         self.spin_min_col.setValue(150)
@@ -185,16 +335,6 @@ class FijiRunnerGUI(QMainWindow):
         self.spin_sigma.setToolTip("Sigma value for Gaussian blur applied before colony detection.")
         self.spin_roi_thickness.setToolTip("Thickness of the ROI border drawn around detected colonies.")
 
-        # advanced_layout.setColumnStretch(0, 0)  # label (left)
-        # advanced_layout.setColumnStretch(1, 0)  # spinbox (left)
-
-        # advanced_layout.setColumnStretch(2, 1)  # empty space
-        # # advanced_layout.setColumnStretch(3, 1)  # empty space
-        # advanced_layout.setColumnStretch(4, 1)  # empty space
-
-        # advanced_layout.setColumnStretch(5, 0)  # label (right)
-        # advanced_layout.setColumnStretch(6, 0)  # spinbox (right)
-
         advanced_layout.addWidget(label_rolling_radius, 0, 0); advanced_layout.addWidget(self.spin_rolling, 0, 1)
         advanced_layout.addWidget(label_min_col_size, 0, 2); advanced_layout.addWidget(self.spin_min_col, 0, 3)
         advanced_layout.addWidget(label_max_col_size, 1, 2); advanced_layout.addWidget(self.spin_max_col, 1, 3)
@@ -203,13 +343,10 @@ class FijiRunnerGUI(QMainWindow):
         advanced_layout.addWidget(label_roi_thickness, 1, 4); advanced_layout.addWidget(self.spin_roi_thickness, 1, 5)
 
         advanced_box.setLayout(advanced_layout)
-        advanced_box.setVisible(True)
-        settings_container.addWidget(advanced_box)
+        settings_container.addWidget(advanced_box, 3)
         
         # Add the horizontal settings container to the main layout
         layout.addLayout(settings_container)
-
-        self.chk_advanced.toggled.connect(advanced_box.setVisible)
 
         # Button Row
         button_layout = QHBoxLayout()
@@ -245,6 +382,8 @@ class FijiRunnerGUI(QMainWindow):
         file_input_folder = QFileDialog.getExistingDirectory(self, "Select File Input Folder")
         if file_input_folder:
             self.input_edit.setText(file_input_folder)
+        if not self.output_edit.text().strip():
+            self.output_edit.setText(file_input_folder)
 
     def select_output_folder(self):
         d = QFileDialog.getExistingDirectory(self, "Select Output Folder")
@@ -311,36 +450,41 @@ class FijiRunnerGUI(QMainWindow):
 
         return output_path
 
-    def write_config(self, input_path, output_path):
+    def list_image_files(self, input_path: str) -> list[str]:
+        image_files = [
+            str(file)
+            for file in Path(input_path).glob("*")
+            if file.suffix.lower() in [".tif", ".tiff", ".png", ".jpg", ".jpeg"]
+        ]
+        return natsort.natsorted(image_files)
+
+
+    def write_config(self, input_path, output_path, group_map: dict[str, list[str]] | None = None):
         config_path = output_path / "countPHICS_params.txt"
 
         lines = [
             "input=" + str(input_path),
             "output=" + str(output_path),
 
-            # "auto_threshold=" + str(self.chk_auto_thresh.isChecked()).lower(),
             "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
             "six_well=" + str(self.chk_six_well.isChecked()).lower(),
-            "advanced=" + str(self.chk_advanced.isChecked()).lower(),
+            "manual_group_assignment=" + str(self.chk_group_assignment.isChecked()).lower(),
+
+            "rolling_ball=" + str(self.spin_rolling.value()),
+            "min_colony=" + str(self.spin_min_col.value()),
+            "max_colony=" + str(self.spin_max_col.value()),
+            "circularity=" + str(self.spin_circ.value()),
+            "sigma=" + str(self.spin_sigma.value()),
+            "roi_thickness=" + str(self.spin_roi_thickness.value()),
         ]
 
-        if self.chk_advanced.isChecked():
-            lines.extend([
-                "rolling_ball=" + str(self.spin_rolling.value()),
-                "min_colony=" + str(self.spin_min_col.value()),
-                "max_colony=" + str(self.spin_max_col.value()),
-                "circularity=" + str(self.spin_circ.value()),
-                "sigma=" + str(self.spin_sigma.value()),
-                "roi_thickness=" + str(self.spin_roi_thickness.value())
-            ])
-
-        image_files = [
-            str(file)
-            for file in Path(input_path).glob("*")
-            if file.suffix.lower() in [".tif", ".tiff"]
-        ]
-        image_files = natsort.natsorted(image_files)
+        image_files = self.list_image_files(input_path)
         lines.append("images=" + ";".join(image_files))
+
+        # Write groups as a dictionary: group_name -> [image_path, ...]
+        # Stored as JSON so it's unambiguous to parse later.
+        if group_map is not None:
+            lines.append("groups=" + json.dumps(group_map))
 
         with open(config_path, "w") as f:
             f.write("\n".join(lines))
@@ -367,10 +511,23 @@ class FijiRunnerGUI(QMainWindow):
         if not input_path:
             return
 
-        output_path = self.get_output_path(input_path)
-        self.write_config(input_path, output_path)
+        image_files = self.list_image_files(input_path)
+        if not image_files:
+            self.log_to_console("ERROR: No image files found in input folder.", "red")
+            return
 
+        group_map = None
+        if self.chk_group_assignment.isChecked():
+            dlg = GroupAssignmentDialog(image_files, parent=self)
+            if dlg.exec() != QDialog.Accepted:
+                self.log_to_console("Launch canceled during group assignment.", "#d8a63b")
+                return
+            group_map = dlg.get_group_map()
+
+        output_path = self.get_output_path(input_path)
+        self.write_config(input_path, output_path, group_map=group_map)
         self.launch_fiji()
+
 
     def cancel_process(self):
         if self.process.state() == QProcess.Running:
@@ -425,37 +582,50 @@ class FijiRunnerGUI(QMainWindow):
 
     def on_fiji_finished(self, summary_file: Path, area_distribution_files: list[Path], output_dir: Path):
         try:
-            grapher = FIJIGrapher()
+            if self.chk_plotting.isChecked():
+                grapher = FIJIGrapher()
 
-            plots_dir = output_dir / "plots"
-            plots_dir.mkdir(exist_ok=True)
+                plots_dir = output_dir / "plots"
+                plots_dir.mkdir(exist_ok=True)
 
-            # Generate boxplot for colony counts
-            grapher.load_summary_file(summary_file)
-            grapher.boxplot(
-                x="Group",
-                y="Num colonies",
-                title="Mean intensity by condition"
-            )
-            grapher.save_current_plot(plots_dir / "all_colony_counts_boxplot.png")
-            plt.close()
-
-            # Generate histograms for each area distribution file
-            for area_distribution_file in area_distribution_files:
-                area_distribution_data = grapher.load_area_distribution_file(
-                    area_distribution_file, skiprows=1
+                # Generate boxplot for colony counts
+                grapher.load_summary_file(summary_file)
+                grapher.boxplot(
+                    x="Group",
+                    y="Num colonies",
+                    title="Mean colony count by group"
                 )
-                grapher.histogram(
-                    x=area_distribution_data.columns.tolist()[0],
-                    bins=30,
-                    title="Colony Area Distribution"
-                )
-                grapher.save_current_plot(plots_dir / f"{area_distribution_file.stem}_area_hist.png")
+                grapher.save_current_plot(plots_dir / "all_colony_counts_boxplot.png")
                 plt.close()
 
-            self.log_to_console(
-                f"Saved plots to {plots_dir}", "green"
-            )
+                grapher.violin(
+                    x="Group",
+                    y="GeomMeanSize",
+                    title="Mean size by group (geometric mean of colony areas)"
+                )
+                grapher.save_current_plot(plots_dir / "all_colony_counts_violinplot.png")
+                plt.close()
+
+                # Generate histograms for each area distribution file
+                for area_distribution_file in area_distribution_files:
+                    area_distribution_data = grapher.load_area_distribution_file(
+                        area_distribution_file, skiprows=1
+                    )
+                    grapher.histogram(
+                        x=area_distribution_data.columns.tolist()[0],
+                        bins=30,
+                        title="Colony Area Distribution"
+                    )
+                    grapher.save_current_plot(plots_dir / f"{area_distribution_file.stem}_area_hist.png")
+                    plt.close()
+
+                self.log_to_console(
+                    f"Saved plots to {plots_dir}", "green"
+                )
+            else:
+                self.log_to_console(
+                    "Plotting skipped (unchecked in settings)", "#97af2a"
+                )
 
         except Exception as e:
             self.log_to_console(
@@ -465,9 +635,9 @@ class FijiRunnerGUI(QMainWindow):
 if __name__ == "__main__":
 
     # ctypes allows the icon to be displayed correctly
-    import ctypes
-    if sys.platform == "win32":
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("countphics.app.1")
+    # import ctypes
+    # if sys.platform == "win32":
+    #     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("countphics.app.1")
 
     base_dir = Path(__file__).resolve().parent
     icon_path = base_dir / "assets" / "countphics.ico"

@@ -16,7 +16,7 @@ import os
 import sys
 import math
 
-macro_version = '2.2.2'
+macro_version = '2.2.3'
 
 # --- 1. Parameter Parsing ---
 def parse_parameter_file():
@@ -94,7 +94,6 @@ else:
 threshold_flag = as_bool(params.get("auto_threshold"))
 same_roi_flag = as_bool(params.get("same_roi"))
 six_well_flag = as_bool(params.get("six_well"))
-advanced_flag = as_bool(params.get("advanced"))
 
 if six_well_flag:
     w = imp.getWidth()/2
@@ -104,23 +103,22 @@ else:
     h = imp.getHeight()
 
 # Advanced Parameters
-if advanced_flag:
-    rolling_ball = int(params.get("rolling_ball", int(w * 0.0306)))
-    minimum_col  = int(params.get("min_colony", int(0.01 * w)))
-    maximum_col  = int(params.get("max_colony", int(w)))
-    circ         = float(params.get("circularity", 0.5))
-    roi_thickness = int(params.get("roi_thickness", 3))
-    if not units_known:
-        sigma = float(params.get("sigma", 0.001 * w))
-    else:
-        sigma = float(params.get("sigma", (1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3))
+rolling_ball = int(params.get("rolling_ball", int(w * 0.0306)))
+minimum_col  = int(params.get("min_colony", int(0.01 * w)))
+maximum_col  = int(params.get("max_colony", int(w)))
+circ         = float(params.get("circularity", 0.5))
+roi_thickness = int(params.get("roi_thickness", 3))
+if not units_known:
+    sigma = float(params.get("sigma", 0.001 * w))
 else:
-    rolling_ball = int(w * 0.0306)
-    minimum_col  = int(0.01 * w)
-    maximum_col  = int(w)
-    circ         = 0.5
-    roi_thickness = 3
-    sigma = 0.001 * w if not units_known else ((1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3)
+    sigma = float(params.get("sigma", (1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3))
+# else:
+#     rolling_ball = int(w * 0.0306)
+#     minimum_col  = int(0.01 * w)
+#     maximum_col  = int(w)
+#     circ         = 0.5
+#     roi_thickness = 3
+#     sigma = 0.001 * w if not units_known else ((1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3)
 
 imp.close() # Close the calibration image
 

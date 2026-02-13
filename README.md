@@ -1,11 +1,11 @@
 # countPHICS2 - Colony Counter Interface
 
-A Python-based graphical interface for automated bacterial colony counting and analysis using FIJI/ImageJ. This tool provides a user-friendly GUI for processing images of bacterial colonies with advanced image analysis, statistical visualization, and batch processing capabilities.<br>
+A Python-based graphical interface for automated cell colony counting and analysis using FIJI/ImageJ. This tool provides a user-friendly GUI for processing images of colonies with advanced image analysis, statistical visualization, and batch processing capabilities.<br>
 **Originally developed by Beata Brzozowska and published DOI: 10.1007/s00411-018-00772-z.**
 
 ## Overview
 
-Count and Plot HIstograms of Colony Size 2 (countPHICS2) is designed to automate the tedious process of counting bacterial colonies in microscopy images. It combines the power of FIJI/ImageJ's image processing capabilities with Python's data analysis and visualization tools through an intuitive desktop interactive interface.
+Count and Plot HIstograms of Colony Size 2 (countPHICS2) is designed to automate the tedious process of counting colonies. It combines the power of FIJI/ImageJ's image processing capabilities with Python's data analysis and visualization tools through an intuitive desktop interactive interface.
 
 ### Key Features
 
@@ -83,8 +83,8 @@ python main_window.py
         - Described in further detail in <a href=https://pubmed.ncbi.nlm.nih.gov/30673853>original countPHICS paper</a>
         - Example image:<br>
             <img src=examples/example.png alt="drawing" width="300"/>
-   - Click "Browse Input" to select a folder containing your `.tif` or `.tiff` images
-   - Images should be RGB images of bacterial colonies
+   - Click "Browse Input" to select a folder containing your `.tif`, `.tiff`, `.png`, `.jpeg` or `.jpg` images
+   - Images should be RGB.
 
 2. **Choose output location** (optional)
    - Click "Browse Output" to specify where results should be saved
