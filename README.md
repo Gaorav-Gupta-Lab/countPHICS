@@ -21,7 +21,6 @@ Count and Plot HIstograms of Colony Size 2 (countPHICS2) is designed to automate
 
 ### Software Dependencies
 
-- **FIJI/ImageJ** - Must be installed and accessible on your system
 - **Python 3.12+** - With the following packages:
   - PySide6 (Qt6 bindings)
   - pandas
