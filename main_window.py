@@ -18,8 +18,7 @@ from PySide6.QtWidgets import (
 
 from PySide6.QtCore import QProcess, Qt, QSignalBlocker
 from PySide6.QtGui import QTextCursor, QIcon
-from typer import edit
-
+# from typer import edit
 from ImageJ.macros.grapher import FIJIGrapher
 from PySide6.QtWidgets import QComboBox
 
@@ -29,12 +28,11 @@ class GroupAssignmentDialog(QDialog):
     Includes "same as above" behavior that copies/locks the group field.
     """
 
-    def __init__(self, image_paths: list[str], parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Manual Group Assignment")
-        self.image_paths = image_paths
+        self.image_paths = list[str]
         self.setStyleSheet(FijiRunnerGUI.load_stylesheet())
-
         self.group_edits: list[QLineEdit] = []
         self.same_as_above_checks: list[QCheckBox] = []
 
@@ -78,7 +76,7 @@ class GroupAssignmentDialog(QDialog):
             self.group_edits.append(group_edit)
             self.same_as_above_checks.append(same_chk)
 
-            # First row can't be "same as above"
+            # The first row can't be "same as above"
             if i == 1:
                 same_chk.setEnabled(False)
 
@@ -125,7 +123,7 @@ class GroupAssignmentDialog(QDialog):
         # Walk downward, updating linked rows
         for j in range(start_idx + 1, len(self.group_edits)):
             if not self.same_as_above_checks[j].isChecked():
-                break  # chain stops at first unchecked row
+                break  # the chain stops at the first unchecked row
 
             edit = self.group_edits[j]
 
@@ -136,7 +134,7 @@ class GroupAssignmentDialog(QDialog):
 
     def _on_same_as_above_toggled(self, idx: int, checked: bool):
         """
-        If checked: copy group from previous row, disable + visually gray out.
+        If checked: copy the group from the previous row, disable + visually gray out.
         If unchecked: enable editing again.
         """
         edit = self.group_edits[idx]
@@ -452,7 +450,6 @@ class FijiRunnerGUI(QMainWindow):
             """
             I don't like hard coding the file name here, especially since it is no longer the correct name for Fiji.
             """
-            # fiji_path = current_dir.parent / "ImageJ-win64.exe"
             fiji_path = "{0}{1}ImageJ{1}ImageJ-win64.exe".format(base_dir,os.sep)
 
         else:
@@ -598,18 +595,6 @@ class FijiRunnerGUI(QMainWindow):
     def handle_stderr(self):
         data = self.process.readAllStandardError().data().decode()
         
-        # List of "noisy" keywords to ignore
-        junk_keywords = [
-            "net.imagej", 
-            "java.net",
-            "java.lang",
-            "java.rmi",
-            "javassist",
-            "org.scijava",
-            "sun.reflect",
-            "sun.rmi"
-        ]
-
         key_keywords = [
             "warning",
         ]
@@ -694,7 +679,7 @@ if __name__ == "__main__":
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("countphics.app.1")
 
     base_dir = Path(__file__).resolve().parent
-    icon_path = base_dir / "assets" / "countphics.ico"
+    icon_path = "{0}{1}assets{1}countphics.ico".format(base_dir, os.sep)
     
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon(str(icon_path)))

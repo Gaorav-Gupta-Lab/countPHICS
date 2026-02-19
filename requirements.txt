@@ -2,3 +2,4 @@ natsort
 matplotlib
 pyside6
 seaborn
+scipy

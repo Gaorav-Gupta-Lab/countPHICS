@@ -16,28 +16,27 @@ import os
 import sys
 import math
 
-macro_version = '2.2.3'
+macro_version = '2.2.4'
 
-# --- 1. Parameter Parsing ---
 def parse_parameter_file():
-    # od = OpenDialog("Select countPHICS parameter file", None)
-    # param_dir = od.getDirectory()
-    # print("Pparam_dir: " + param_dir)
-    # param_name = od.getFileName()
-    # print("Pparam_name: " + param_name)
+    """
+    Parses a parameter file and retrieves configurations specified in the file.
+    This function first determines the file path of the parameter file, verifies its existence,
+    and then reads and parses the parameter contents. Parameter key-value pairs in the file
+    should be in the format `key=value`. Lines that are empty or begin with the `#` character
+    are ignored. The parsed key-value pairs are returned as a dictionary.
 
-    param_dir = "C:\\Users\\Paolo_Lab\\OneDrive - University of North Carolina at Chapel Hill\\Desktop\\prog\\GuptaLab\\countPHICS2\\config_dir\\"
- 
-    param_name = "countPHICS_params.txt"
+    :raises SystemExit: If no parameter file is selected, or the specified parameter file does not exist.
+    :returns: A dictionary containing the parsed configuration as key-value pairs.
+    :rtype: dict
+    """
 
-
-
-    if param_dir is None or param_name is None:
+    param_path = os.getcwd() + str(os.sep) + "config_dir" + str(os.sep) + "countPHICS_params.txt"
+    '''
+    if param_path is None or param_name is None:
         IJ.log("No parameter file selected. Aborting.")
         sys.exit()
-
-    param_path = os.path.join(param_dir, param_name)
-
+    '''
     if not os.path.exists(param_path):
         IJ.log("Parameter file does not exist: " + param_path)
         sys.exit()
@@ -143,7 +142,8 @@ else:
 imp.close() # Close the calibration image
 
 # --- 4. The Refactored Count Function ---
-def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres_iteration_flag, image_output_path, roi_def=None):
+def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres_iteration_flag, image_output_path,
+                   roi_def=None):
     """
     Refactored to take original_path instead of image_number strings.
     is_first: boolean, true if this is the very first image/well being analyzed (for initializing ROI).
@@ -160,7 +160,7 @@ def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres
     green.setCalibration(cal)
     blue.setCalibration(cal)
 
-    # Auto-select best channel based on contrast (StdDev), virtually always green
+    # Auto-select the best channel based on contrast (StdDev), virtually always green
     roi_chk = OvalRoi(w/4, h/4, w/2, h/2)
     red.setRoi(roi_chk); green.setRoi(roi_chk); blue.setRoi(roi_chk)
     
@@ -326,7 +326,7 @@ for i, img_path in enumerate(all_images):
                 res = count_colonies(imp_well, img_path, is_first_well, same_roi_flag, 
                                      threshold_flag, thresh_flag_score, out_path)
                 
-                # Write individual text file
+                # Write an individual text file
                 area_list = res[0]
                 count = len(area_list) if area_list else 0
                 
@@ -382,7 +382,7 @@ for i, img_path in enumerate(all_images):
         area_list = res[0]
         count = len(area_list) if area_list else 0
 
-        # Write single image colony distribution file
+        # Write a single image colony distribution file
         f = open(size_output_path, 'w')
         f.write("Number of colonies: " + str(count) + "\n")
         f.write("Colony Area\n")
@@ -417,11 +417,10 @@ for i, img_path in enumerate(all_images):
 
             return round(math.exp(log_sum / n), 2)
 
-        if count > 0:
-            median_area = calculate_median_area(area_list)
-            geom_mean_area = calculate_geometric_mean(area_list)
-            min_area = int(min(area_list))
-            max_area = int(max(area_list))
+        median_area = calculate_median_area(area_list)
+        geom_mean_area = calculate_geometric_mean(area_list)
+        min_area = int(min(area_list))
+        max_area = int(max(area_list))
 
         # Write to Summary
         if is_global_first:
