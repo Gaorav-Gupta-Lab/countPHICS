@@ -631,7 +631,7 @@ class FijiRunnerGUI(QMainWindow):
                 grapher.load_summary_file(summary_file)
                 grapher.boxplot(
                     x="Group",
-                    y="Num colonies",
+                    y="Colonies",
                     title="Mean colony count by group"
                 )
                 grapher.save_current_plot(plots_dir / "all_colony_counts_boxplot.png")

@@ -1,3 +1,24 @@
+"""
+Lightweight analysis and visualization system for handling FIJI summary outputs.
+
+The main purpose of this module is to provide an interface for loading,
+parsing, inspecting, and visualizing FIJI-generated TSV summary files.
+This is achieved through a set of convenience methods organized around
+plotting common statistical visualizations such as histograms, boxplots,
+and scatterplots. It also handles metadata extraction from summary files.
+
+Classes and Methods:
+- FijiRunMetadata: A container for macro version and runtime information.
+- FIJIGrapher: Implements file loading, metadata parsing, data inspection, and visualization.
+
+The module relies on pandas for data handling and seaborn/matplotlib for visualization.
+
+@ Author: Paolo Guerra
+@ The University of North Carolina at Chapel Hill
+@ Date: February 2026
+@ Version: 1.0.0
+"""
+
 from pathlib import Path
 from dataclasses import dataclass
 import pandas as pd
@@ -24,9 +45,9 @@ class FIJIGrapher:
     Lightweight analysis + visualization layer for FIJI summary outputs.
 
     Expected file format:
-    line 1  -> metadata (macro version, runtime, etc.)
-    line 2  -> empty
-    line 3+ -> TSV header + data
+    line 1 -> metadata (macro version, runtime, etc.)
+    line 2 -> empty
+    line 3+ -> TSV header and data
     """
 
     def __init__(self, style="whitegrid", dpi=120):
@@ -75,7 +96,8 @@ class FIJIGrapher:
         except Exception as e:
             print(f"Failed to load data: {e}")
 
-    def _parse_metadata(self, header_line: str) -> FijiRunMetadata:
+    @staticmethod
+    def _parse_metadata(header_line: str) -> FijiRunMetadata:
         """
         Parse macro metadata from the first line.
         """
@@ -150,7 +172,8 @@ class FIJIGrapher:
     def _new_figure(self, figsize=(8, 5)):
         plt.figure(figsize=figsize, dpi=self.dpi)
 
-    def save_current_plot(self, outpath: str | Path):
+    @staticmethod
+    def save_current_plot(outpath: str | Path):
         outpath = Path(outpath)
         outpath.parent.mkdir(parents=True, exist_ok=True)
         plt.tight_layout()
@@ -173,9 +196,6 @@ class FIJIGrapher:
         data = self.data[x].dropna()
         data = data[data > 0]  # Weibull requires positive values
 
-        if len(data) == 0:
-            raise ValueError("Weibull fit requires positive values.")
-
         self._new_figure()
 
         # ---- Histogram (normalized) ----
@@ -188,37 +208,50 @@ class FIJIGrapher:
             alpha=0.6,
         )
 
-        # ---- Weibull fit (MLE) ----
-        shape, loc, scale = weibull_min.fit(data, floc=0)
+        if len(data) > 0:
+            # ---- Weibull fit (MLE) ----
+            shape, loc, scale = weibull_min.fit(data, floc=0)
 
-        # ---- PDF for plotting ----
-        x_fit = np.linspace(data.min(), data.max(), 500)
-        y_fit = weibull_min.pdf(x_fit, shape, loc=loc, scale=scale)
+            # ---- PDF for plotting ----
+            x_fit = np.linspace(data.min(), data.max(), 500)
+            y_fit = weibull_min.pdf(x_fit, shape, loc=loc, scale=scale)
 
-        plt.plot(
-            x_fit,
-            y_fit,
-            "r-",
-            linewidth=2.5,
-            label=f"Weibull fit (k={shape:.2f}, λ={scale:.2f})"
-        )
+            plt.plot(
+                x_fit,
+                y_fit,
+                "r-",
+                linewidth=2.5,
+                label=f"Weibull fit (k={shape:.2f}, λ={scale:.2f})"
+            )
 
-        # ---- Goodness of fit (KS test) ----
-        D, p = kstest(data, "weibull_min", args=(shape, loc, scale))
+            # ---- Goodness of fit (KS test) ----
+            D, p = kstest(data, "weibull_min", args=(shape, loc, scale))
 
-        plt.text(
-            0.95,
-            0.95,
-            f"KS p = {p:.3g}",
-            transform=plt.gca().transAxes,
-            ha="right",
-            va="top"
-        )
+            plt.text(
+                0.95,
+                0.95,
+                f"KS p = {p:.3g}",
+                transform=plt.gca().transAxes,
+                ha="right",
+                va="top"
+            )
+        else:
+            plt.text(
+                0.95,
+                0.95,
+                "No positive data available for fit",
+                transform=plt.gca().transAxes,
+                ha="right",
+                va="top"
+            )
 
         plt.xlabel(x)
         plt.ylabel("Density")
         plt.title(title or f"Distribution of {x}")
-        plt.legend()
+        ax = plt.gca()
+        handles, labels = ax.get_legend_handles_labels()
+        if labels:
+            plt.legend()
 
         self._annotate_metadata()
 

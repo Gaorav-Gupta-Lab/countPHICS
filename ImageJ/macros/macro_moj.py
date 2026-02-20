@@ -16,7 +16,7 @@ import os
 import sys
 import math
 
-macro_version = '2.2.4'
+macro_version = '2.2.5'
 
 def parse_parameter_file():
     """
@@ -350,10 +350,10 @@ for i, img_path in enumerate(all_images):
                 t_min = globals().get('thres_min', 0)
                 t_max = globals().get('thres_max', 0)
                     
-                f_sum.write(file_name_base + "\t" + str(well_count) + "\t" + str(count) + "\t" + str(t_min) + "\t" + str(t_max) + "\n")
+                f_sum.write(file_name_base + "\t" + str(well_count) + "\t" + str(colony_count) + "\t" + str(t_min) + "\t" + str(t_max) + "\n")
 
-                print(file_name_base + " Well " + str(well_count) + ": " + str(count))
-                if count > 10: thresh_flag_score = False
+                print(file_name_base + " Well " + str(well_count) + ": " + str(colony_count))
+                if colony_count > 10: thresh_flag_score = False
                 well_count += 1
 
     # --- Standard Single Image Logic ---
@@ -369,10 +369,10 @@ for i, img_path in enumerate(all_images):
         if not os.path.exists(os.path.dirname(image_output_path)):
             os.makedirs(os.path.dirname(image_output_path))
 
+        group_name = "unassigned"
+
         if group_handling == "automatic":
             group_name = file_name_base[:file_name_base.rfind('_')] if '_' in file_name_base else file_name_base
-        elif group_handling == "none":
-            group_name = "unassigned"
         elif group_handling == "manual":
             group_name = group_assignment_dict.get(img_path, "unassigned")
 
@@ -380,47 +380,48 @@ for i, img_path in enumerate(all_images):
                              threshold_flag, thresh_flag_score, image_output_path)
         
         area_list = res[0]
-        count = len(area_list) if area_list else 0
+        colony_count = len(area_list) if area_list else 0
 
         # Write a single image colony distribution file
         f = open(size_output_path, 'w')
-        f.write("Number of colonies: " + str(count) + "\n")
+        f.write("Number of colonies: " + str(colony_count) + "\n")
         f.write("Colony Area\n")
 
         if area_list:
             f.write("\n".join(str(area) for area in area_list) + "\n")
         f.close()
 
-        def calculate_median_area(area_list):
-            sorted_areas = sorted(area_list)
-            n = len(sorted_areas)
-            if n == 0:
-                return 0
-            elif n % 2 == 1:
-                return sorted_areas[n // 2]
+        def calculate_median_area(colony_area_list, num_colonies):
+            sorted_areas = sorted(colony_area_list)
+
+            if num_colonies % 2 == 1:
+                return sorted_areas[num_colonies // 2]
             else:
-                mid1 = sorted_areas[n // 2 - 1]
-                mid2 = sorted_areas[n // 2]
+                mid1 = sorted_areas[num_colonies // 2 - 1]
+                mid2 = sorted_areas[num_colonies // 2]
                 return (mid1 + mid2) / 2
 
-        def calculate_geometric_mean(area_list):
-            if not area_list:
-                return 0.0
-
+        def calculate_geometric_mean(colony_area_list, num_colonies):
             log_sum = 0.0
-            n = len(area_list)
 
-            for area in area_list:
-                if area <= 0:
+            for pixel_area in colony_area_list:
+                if pixel_area <= 0:
                     continue
-                log_sum += math.log(area)
+                log_sum += math.log(pixel_area)
 
-            return round(math.exp(log_sum / n), 2)
+            return round(math.exp(log_sum / num_colonies), 2)
 
-        median_area = calculate_median_area(area_list)
-        geom_mean_area = calculate_geometric_mean(area_list)
-        min_area = int(min(area_list))
-        max_area = int(max(area_list))
+        if colony_count > 0:
+            median_area = calculate_median_area(area_list, colony_count)
+            geom_mean_area = calculate_geometric_mean(area_list, colony_count)
+            max_area = int(max(area_list))
+            min_area = int(min(area_list))
+        else:
+            median_area = 0.0
+            geom_mean_area = 0.0
+            max_area = 0.0
+            min_area = 0.0
+
 
         # Write to Summary
         if is_global_first:
@@ -443,13 +444,13 @@ for i, img_path in enumerate(all_images):
                         '# MinThresh=' + str(t_min) + '\n' \
                         '# MaxThresh=' + str(t_max)
 
-            header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tNum colonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\tImage ROI\n')
+            header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tColonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\tImage ROI\n')
             summary_lines.append(header)
         
-        row = file_name_base + ".tif\t" + group_name + "\t" + str(count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(roi2) + "\n"
+        row = file_name_base + ".tif\t" + group_name + "\t" + str(colony_count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(roi2) + "\n"
         summary_lines.append(row)
         print("Processed file: " + file_name_base)
-        if count > 10: thresh_flag_score = False
+        if colony_count > 10: thresh_flag_score = False
 
     imp.close()
 
