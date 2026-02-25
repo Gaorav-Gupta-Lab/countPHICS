@@ -628,27 +628,28 @@ class FijiRunnerGUI(QMainWindow):
                 plots_dir.mkdir(exist_ok=True)
 
                 # Generate boxplot for colony counts
-                grapher.load_summary_file(summary_file)
-                grapher.boxplot(
-                    x="Group",
-                    y="Colonies",
-                    title="Mean colony count by group"
-                )
-                grapher.save_current_plot(plots_dir / "all_colony_counts_boxplot.png")
-                plt.close()
+                if self.combo_group_assignment.currentText() != "None":
+                    grapher.load_summary_file(summary_file)
+                    grapher.boxplot(
+                        x="Group",
+                        y="Colonies",
+                        title="Mean colony count by group"
+                    )
+                    grapher.save_current_plot(plots_dir / "all_colony_counts_boxplot.png")
+                    plt.close()
 
-                grapher.violin(
-                    x="Group",
-                    y="GeomMeanSize",
-                    title="Mean size by group (geometric mean of colony areas)"
-                )
-                grapher.save_current_plot(plots_dir / "all_colony_counts_violinplot.png")
-                plt.close()
+                    grapher.violin(
+                        x="Group",
+                        y="GeomMeanSize",
+                        title="Mean size by group (geometric mean of colony areas)"
+                    )
+                    grapher.save_current_plot(plots_dir / "all_colony_counts_violinplot.png")
+                    plt.close()
 
                 # Generate histograms for each area distribution file
                 for area_distribution_file in area_distribution_files:
                     area_distribution_data = grapher.load_area_distribution_file(
-                        area_distribution_file, skiprows=1
+                        area_distribution_file
                     )
                     grapher.histogram(
                         x=area_distribution_data.columns.tolist()[0],

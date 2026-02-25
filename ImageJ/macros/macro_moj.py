@@ -279,7 +279,7 @@ def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres
     return [areas, roi2, proc_imp, units]
 
 # --- 5. Main Loop (Iterating over LIST) ---
-print("Processing " + str(len(all_images)) + " images...")
+# print("Processing " + str(len(all_images)) + " images...")
 thresh_flag_score = True
 
 summary_path = os.path.join(output_directory, 'Summary.txt')
@@ -352,7 +352,7 @@ for i, img_path in enumerate(all_images):
                     
                 f_sum.write(file_name_base + "\t" + str(well_count) + "\t" + str(colony_count) + "\t" + str(t_min) + "\t" + str(t_max) + "\n")
 
-                print(file_name_base + " Well " + str(well_count) + ": " + str(colony_count))
+                # print(file_name_base + " Well " + str(well_count) + ": " + str(colony_count))
                 if colony_count > 10: thresh_flag_score = False
                 well_count += 1
 
@@ -383,8 +383,10 @@ for i, img_path in enumerate(all_images):
         colony_count = len(area_list) if area_list else 0
 
         # Write a single image colony distribution file
+        current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
         f = open(size_output_path, 'w')
-        f.write("Number of colonies: " + str(colony_count) + "\n")
+        f.write("# countPHICS v" + macro_version + " --- " + current_time + "\n")
+        f.write("# Number of colonies: " + str(colony_count) + "\n")
         f.write("Colony Area\n")
 
         if area_list:
@@ -449,7 +451,7 @@ for i, img_path in enumerate(all_images):
         
         row = file_name_base + ".tif\t" + group_name + "\t" + str(colony_count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(roi2) + "\n"
         summary_lines.append(row)
-        print("Processed file: " + file_name_base)
+        # print("Processed file: " + file_name_base)
         if colony_count > 10: thresh_flag_score = False
 
     imp.close()
@@ -458,7 +460,7 @@ f_sum = open(summary_path, 'w')
 f_sum.writelines(summary_lines)
 
 WaitForUserDialog("Analysis complete!", "Results saved in:\n" + 
-                  output_directory + 
-                  "\nFIJI will now automatically close...").show()
+                  output_directory + "\n" + 
+                  "FIJI will now automatically close...").show()
 
 IJ.run("Quit")

@@ -129,6 +129,7 @@ class FIJIGrapher:
                 filepath,
                 sep="\t",
                 header=0,
+                comment="#",
                 skiprows=skiprows
             )
 
