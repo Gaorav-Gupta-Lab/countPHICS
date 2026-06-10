@@ -24,7 +24,7 @@ from libraries import PreprocessImages
 from libraries.StyleSheetLoader import load_stylesheet
 from libraries.SampleGrouping import GroupAssignmentDialog
 
-__version__ = "2.3.0"
+__version__ = "2.3.1"
 
 class FijiRunnerGUI(QMainWindow):
     def __init__(self):
