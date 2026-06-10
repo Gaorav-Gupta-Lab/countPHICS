@@ -13,201 +13,23 @@ import natsort
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
     QFileDialog, QCheckBox, QSpinBox, QGroupBox, QDoubleSpinBox, QLineEdit, QLabel,
-    QGridLayout, QDialog, QMessageBox, QScrollArea, QSizePolicy
+    QGridLayout, QDialog, QScrollArea, QComboBox
 )
 
-from PySide6.QtCore import QProcess, Qt, QSignalBlocker
+from PySide6.QtCore import QProcess, Qt
 from PySide6.QtGui import QTextCursor, QIcon
-# from typer import edit
-from ImageJ.macros.grapher import FIJIGrapher
-from PySide6.QtWidgets import QComboBox
 
-class GroupAssignmentDialog(QDialog):
-    """
-    Modal dialog allowing the user to assign a group name per image.
-    Includes "same as above" behavior that copies/locks the group field.
-    """
+from libraries.grapher import FIJIGrapher
+from libraries import PreprocessImages
+from libraries.StyleSheetLoader import load_stylesheet
+from libraries.SampleGrouping import GroupAssignmentDialog
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Manual Group Assignment")
-        self.image_paths = list[str]
-        self.setStyleSheet(FijiRunnerGUI.load_stylesheet())
-        self.group_edits: list[QLineEdit] = []
-        self.same_as_above_checks: list[QCheckBox] = []
-
-        self._init_ui()
-
-    def _init_ui(self):
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(16, 16, 16, 16)
-        outer.setSpacing(10)
-
-        header = QLabel("Assign a sample group for each image:")
-        header.setStyleSheet("font-weight: 600;")
-        outer.addWidget(header)
-
-        # Scroll area so large image sets don't explode the window
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        outer.addWidget(scroll, 1)
-
-        content = QWidget()
-        grid = QGridLayout(content)
-        grid.setColumnStretch(0, 2)
-        grid.setColumnStretch(1, 2)
-        grid.setColumnStretch(2, 1)
-        grid.setHorizontalSpacing(12)
-        grid.setVerticalSpacing(8)
-
-        grid.addWidget(QLabel("<b>Image</b>"), 0, 0)
-        grid.addWidget(QLabel("<b>Group</b>"), 0, 1)
-        grid.addWidget(QLabel("<b>Same as above</b>"), 0, 2, alignment=Qt.AlignCenter)
-
-        for i, p in enumerate(self.image_paths, start=1):
-            img_label = QLabel(Path(p).name)
-            img_label.setToolTip(p)
-            img_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
-            group_edit = QLineEdit()
-            group_edit.setPlaceholderText("e.g., WT, KO, +Drug, etc.")
-            same_chk = QCheckBox()
-
-            self.group_edits.append(group_edit)
-            self.same_as_above_checks.append(same_chk)
-
-            # The first row can't be "same as above"
-            if i == 1:
-                same_chk.setEnabled(False)
-
-            same_chk.toggled.connect(lambda checked, idx=i - 1: self._on_same_as_above_toggled(idx, checked))
-
-            grid.addWidget(img_label, i, 0)
-            grid.addWidget(group_edit, i, 1)
-            grid.addWidget(same_chk, i, 2, alignment=Qt.AlignCenter)
-
-        scroll.setWidget(content)
-
-        # Buttons
-        btn_row = QHBoxLayout()
-        btn_row.addStretch(1)
-
-        self.continue_btn = QPushButton("Continue")
-        self.continue_btn.setObjectName("browse_btn")
-        self.cancel_btn = QPushButton("Cancel")
-        self.cancel_btn.setObjectName("browse_btn")
-        self.continue_btn.clicked.connect(self._validate_and_accept)
-        self.cancel_btn.clicked.connect(self.reject)
-
-        btn_row.addWidget(self.continue_btn)
-        btn_row.addWidget(self.cancel_btn)
-        outer.addLayout(btn_row)
-
-        self.resize(900, 600)
-
-    def _on_group_text_changed(self, idx: int):
-        """
-        Whenever a group text changes, update any downstream rows that are
-        currently "same as above" linked (directly or via a chain).
-        """
-        self._propagate_from(idx)
-
-    def _propagate_from(self, start_idx: int):
-        """
-        Push the effective group value from start_idx to subsequent rows
-        that are checked "same as above", until the chain breaks.
-        """
-        # Determine the source value to propagate (effective text at start_idx)
-        src_text = self.group_edits[start_idx].text()
-
-        # Walk downward, updating linked rows
-        for j in range(start_idx + 1, len(self.group_edits)):
-            if not self.same_as_above_checks[j].isChecked():
-                break  # the chain stops at the first unchecked row
-
-            edit = self.group_edits[j]
-
-            # Avoid recursive signal loops + unnecessary work
-            if edit.text() != src_text:
-                with QSignalBlocker(edit):
-                    edit.setText(src_text)
-
-    def _on_same_as_above_toggled(self, idx: int, checked: bool):
-        """
-        If checked: copy the group from the previous row, disable + visually gray out.
-        If unchecked: enable editing again.
-        """
-        edit = self.group_edits[idx]
-
-        if checked:
-            # lock it
-            edit.setEnabled(False)
-            edit.setProperty("same_as_above_locked", True)
-
-            # set to the effective value of the row above (and propagate further)
-            above_text = self.group_edits[idx - 1].text()
-            with QSignalBlocker(edit):
-                edit.setText(above_text)
-            self._propagate_from(idx - 1)
-
-        else:
-            edit.setEnabled(True)
-            edit.setProperty("same_as_above_locked", False)
-            # optional: clear when unlocking
-            # edit.clear()
-
-        edit.style().unpolish(edit)
-        edit.style().polish(edit)
-        edit.update()
-
-    def _validate_and_accept(self):
-        """
-        Validate:
-        - each effective group must be non-empty
-        - "same as above" rows require the above row to have a group
-        """
-        # Force-update "same as above" rows in case user edited the above row after checking
-        for i in range(1, len(self.image_paths)):
-            if self.same_as_above_checks[i].isChecked():
-                self.group_edits[i].setText(self.group_edits[i - 1].text().strip())
-
-        missing = []
-        for i, p in enumerate(self.image_paths):
-            g = self.group_edits[i].text().strip()
-            if not g:
-                missing.append(Path(p).name)
-
-        if missing:
-            QMessageBox.warning(
-                self,
-                "Missing group names",
-                "Every image needs a group name.\n\nMissing:\n- " + "\n- ".join(missing[:20]) +
-                ("\n\n(…and more)" if len(missing) > 20 else "")
-            )
-            return
-
-        self.accept()
-
-    def get_group_map(self) -> dict[str, str]:
-        """
-        Returns: {image_path: group_name, ...}
-        """
-        # Ensure "same as above" is propagated
-        for i in range(1, len(self.image_paths)):
-            if self.same_as_above_checks[i].isChecked():
-                self.group_edits[i].setText(self.group_edits[i - 1].text().strip())
-
-        out: dict[str, str] = {}
-        for p, edit in zip(self.image_paths, self.group_edits):
-            g = edit.text().strip()
-            out[p] = g
-        return out
-
+__version__ = "2.3.0"
 
 class FijiRunnerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Colony Counter Interface")
+        self.setWindowTitle("Colony Counter Interface v{}".format(__version__))
 
         screen = self.screen()
         screen_geometry = screen.geometry()
@@ -215,9 +37,7 @@ class FijiRunnerGUI(QMainWindow):
         height = int(screen_geometry.height() * 0.7)
         self.resize(width, height)
 
-        # self.resize(1000, 700)
-
-        self.setStyleSheet(self.load_stylesheet())
+        self.setStyleSheet(load_stylesheet())
         self.process = QProcess(self)
         self.process.readyReadStandardOutput.connect(self.handle_stdout)
         self.process.readyReadStandardError.connect(self.handle_stderr)
@@ -227,6 +47,7 @@ class FijiRunnerGUI(QMainWindow):
 
         self.input_edit = QLineEdit()
         self.input_btn = QPushButton("Browse Input")
+
         self.output_edit = QLineEdit()
         self.output_btn = QPushButton("Browse Output")
 
@@ -236,11 +57,21 @@ class FijiRunnerGUI(QMainWindow):
         
         # self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
         self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
-        self.chk_six_well = QCheckBox("6-well plate analysis")
         self.chk_plotting = QCheckBox("Generate plots after processing", checked=True)
+        self.chk_split_image = QCheckBox("Split Image", checked=False)
+        self.chk_run_stats = QCheckBox("Run statistical tests after processing", checked=False)
+
         self.group_assignment_label = QLabel("Group assignment:")
         self.combo_group_assignment = QComboBox()
         self.combo_group_assignment.addItems(["None", "Automatic", "Manual"])
+
+        self.cell_line_label = QLabel("Cell line:")
+        self.cell_line_edit = QLineEdit()
+        self.cell_line_edit.setPlaceholderText("e.g., TP53KO, v3DKO, etc.")
+
+        self.treatment_name_label = QLabel("Treatment name:")
+        self.treatment_name_edit = QLineEdit()
+        self.treatment_name_edit.setPlaceholderText("e.g., nmol_MMC, Gy_IR, etc.")
 
         self.spin_rolling = QSpinBox()
         self.spin_min_col = QSpinBox()
@@ -249,29 +80,7 @@ class FijiRunnerGUI(QMainWindow):
         self.spin_sigma = QDoubleSpinBox()
         self.spin_roi_thickness = QSpinBox()
 
-
         self.init_ui()
-
-    @staticmethod
-    def load_stylesheet():
-        """Loads a QSS file and returns its content."""
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        layout_file = os.path.join(base_dir, "layout.qss")
-
-        try:
-            with open(layout_file, 'r', encoding="utf-8-sig", newline="") as f:
-                return f.read()
-
-        except UnicodeDecodeError as e:
-            print(f"Error: Could not decode stylesheet '{layout_file}' as UTF-8 ({e}).")
-            print("Tip: Re-save layout.qss as UTF-8, or remove any unusual characters.")
-            # Fallback: load with a Windows-friendly encoding so the app can still start
-            with open(layout_file, "r", encoding="cp1252", errors="replace", newline="") as f:
-                return f.read()
-
-        except FileNotFoundError:
-            print("Error: Stylesheet file {} not found.".format(layout_file))
-            return ""
 
     def init_ui(self):
         main_widget = QWidget()
@@ -289,22 +98,43 @@ class FijiRunnerGUI(QMainWindow):
         self.input_btn.setObjectName("browse_btn")
         self.input_btn.clicked.connect(self.select_input_folder)
 
-        row1 = QHBoxLayout()
-        row1.addWidget(QLabel("Input folder:"))
-        row1.addWidget(self.input_edit)
-        row1.addWidget(self.input_btn)
-        layout.addLayout(row1)
-
         # Output path
         self.output_edit.setPlaceholderText("Select output directory… (will default to input image folder if left blank)")
         self.output_btn.setObjectName("browse_btn")
         self.output_btn.clicked.connect(self.select_output_folder)
 
-        row2 = QHBoxLayout()
-        row2.addWidget(QLabel("Output folder:"))
-        row2.addWidget(self.output_edit)
-        row2.addWidget(self.output_btn)
-        layout.addLayout(row2)
+        self.input_label = QLabel("Input folder:")
+        self.output_label = QLabel("Output folder:")
+
+        label_width = 150
+
+        for label in [
+            self.input_label,
+            self.output_label,
+            self.cell_line_label,
+            self.treatment_name_label
+        ]:
+            label.setFixedWidth(label_width)
+            label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+        grid = QGridLayout()
+
+        grid.addWidget(self.input_label, 0, 0)
+        grid.addWidget(self.input_edit, 0, 1)
+        grid.addWidget(self.input_btn, 0, 2)
+
+        grid.addWidget(self.output_label, 1, 0)
+        grid.addWidget(self.output_edit, 1, 1)
+        grid.addWidget(self.output_btn, 1, 2)
+
+        grid.addWidget(self.cell_line_label, 2, 0)
+        grid.addWidget(self.cell_line_edit, 2, 1)
+
+        grid.addWidget(self.treatment_name_label, 3, 0)
+        grid.addWidget(self.treatment_name_edit, 3, 1)
+
+        grid.setColumnStretch(1, 1)
+        layout.addLayout(grid)
 
         # ---- Settings container (horizontal) ----
         settings_container = QHBoxLayout()
@@ -314,12 +144,9 @@ class FijiRunnerGUI(QMainWindow):
         general_layout = QVBoxLayout()
 
         general_layout.addWidget(self.chk_same_roi)
-        general_layout.addWidget(self.chk_six_well)
+        general_layout.addWidget(self.chk_split_image)
         general_layout.addWidget(self.chk_plotting)
-
-        self.group_assignment_label.setObjectName("group_assignment_label")
-        general_layout.addWidget(self.group_assignment_label)
-        general_layout.addWidget(self.combo_group_assignment)
+        general_layout.addWidget(self.chk_run_stats)
 
         general_box.setLayout(general_layout)
         settings_container.addWidget(general_box, 1)
@@ -333,8 +160,8 @@ class FijiRunnerGUI(QMainWindow):
         label_rolling_radius = QLabel("Rolling Ball Radius:")
 
         self.spin_min_col.setRange(1, 100000)
-        self.spin_min_col.setValue(150)
-        label_min_col_size = QLabel("Min Colony Size:")
+        self.spin_min_col.setValue(300)
+        label_min_col_size = QLabel("Min Colony Size:") 
 
         self.spin_max_col.setRange(1, 1000000)
         self.spin_max_col.setValue(10000)
@@ -346,7 +173,7 @@ class FijiRunnerGUI(QMainWindow):
         label_circularity = QLabel("Min Circularity:")
 
         self.spin_sigma.setRange(0.0, 100.0)
-        self.spin_sigma.setValue(2.0)
+        self.spin_sigma.setValue(3.5)
         label_sigma = QLabel("Sigma:")
 
         self.spin_roi_thickness.setRange(1, 20)
@@ -453,12 +280,13 @@ class FijiRunnerGUI(QMainWindow):
             fiji_path = "{0}{1}ImageJ{1}ImageJ-win64.exe".format(base_dir,os.sep)
 
         else:
-            fiji_path = Path("/Users/pguerra/Library/CloudStorage/OneDrive-UniversityofNorthCarolinaatChapelHill/Desktop/Fiji")
+            # fiji_path = Path("/Users/pguerra/Library/CloudStorage/OneDrive-UniversityofNorthCarolinaatChapelHill/Desktop/Fiji")
+            fiji_path = Path("/Applications/Fiji.app")
 
         # if not fiji_path.exists():
-        if not os.path.isfile(fiji_path):
-            self.log_to_console(f"ERROR: Fiji not found at {fiji_path}", "red")
-            return None
+        # if not os.path.isfile(fiji_path):
+        #     self.log_to_console(f"ERROR: Fiji not found at {fiji_path}", "red")
+        #     return None
 
         return str(fiji_path), ["--console", "-macro", str(script_path)]
 
@@ -502,21 +330,39 @@ class FijiRunnerGUI(QMainWindow):
         ]
         return natsort.natsorted(image_files)
 
-
-    def write_config(self, input_path, output_path, group_map: dict[str, list[str]] | None = None):
-        # config_path = output_path / "countPHICS_params.txt"
+    def write_config(self, input_path, output_path, assignment_list=None):
         base_path = os.path.dirname(os.path.abspath(__file__))
         config_dir = os.path.join(base_path, "config_dir")
         os.makedirs(config_dir, exist_ok=True)
         config_path = f"{config_dir}{os.sep}countPHICS_params.txt"
 
+        """
         lines = [
             "input=" + str(input_path),
             "output=" + str(output_path),
+            "cell_line=" + self.cell_line_edit.text().strip(),
+            "treatment_name=" + self.treatment_name_edit.text().strip(),
 
             "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
-            "six_well=" + str(self.chk_six_well.isChecked()).lower(),
+            "split_image=" + str(self.chk_split_image.isChecked()).lower(),
             "group_assignment=" + str(self.combo_group_assignment.currentText()).lower(),
+
+            "rolling_ball=" + str(self.spin_rolling.value()),
+            "min_colony=" + str(self.spin_min_col.value()),
+            "max_colony=" + str(self.spin_max_col.value()),
+            "circularity=" + str(self.spin_circ.value()),
+            "sigma=" + str(self.spin_sigma.value()),
+            "roi_thickness=" + str(self.spin_roi_thickness.value()),
+        ]
+        """
+        lines = [
+            "input=" + str(input_path),
+            "output=" + str(output_path),
+            "cell_line=" + self.cell_line_edit.text().strip(),
+            "treatment_name=" + self.treatment_name_edit.text().strip(),
+
+            "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
+            "split_image=" + str(self.chk_split_image.isChecked()).lower(),
 
             "rolling_ball=" + str(self.spin_rolling.value()),
             "min_colony=" + str(self.spin_min_col.value()),
@@ -529,16 +375,10 @@ class FijiRunnerGUI(QMainWindow):
         image_files = self.list_image_files(input_path)
         lines.append("images=" + ";".join(image_files))
 
-        # Write groups as a dictionary: group_name -> [image_path, ...]
-        # Stored as JSON so it's unambiguous to parse later.
-        if group_map is not None:
-            # lines.append("groups=" + json.dumps(group_map))
-            entries = []
-            for img_path, group in group_map.items():
-                entries.append(f"{img_path}|||{group}")
-            lines.append("groups=" + ";;".join(entries))
+        if assignment_list:
+            lines.append("assignments=" + str(assignment_list))
 
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
 
         self.log_to_console(f"Config written to {config_path}", "green")
@@ -569,15 +409,34 @@ class FijiRunnerGUI(QMainWindow):
             return
 
         group_map = None
-        if self.combo_group_assignment.currentText() == "Manual":
-            dlg = GroupAssignmentDialog(image_files, parent=self)
-            if dlg.exec() != QDialog.Accepted:
-                self.log_to_console("Launch canceled during group assignment.", "#d8a63b")
+
+        cell_line = self.cell_line_edit.text().strip()
+        treatment_name = self.treatment_name_edit.text().strip()
+        print(cell_line, treatment_name)
+        dlg = GroupAssignmentDialog(image_files, cell_line=cell_line, treatment_name=treatment_name, parent=self)
+
+        if dlg.exec() != QDialog.Accepted:
+            self.log_to_console("Launch canceled during group assignment.", "#d8a63b")
+        """    
+            return
+        """
+        assignment_list = dlg.get_assignment_list()
+
+        # Split image files
+        if self.chk_split_image.isChecked():
+            error_msg, file_count, output_count = PreprocessImages.split_10cm_dish(input_path, image_files)
+            if error_msg:
+                self.log_to_console(error_msg, "red")
                 return
-            group_map = dlg.get_group_map()
+            elif file_count > 0:
+                self.log_to_console("Split {} images into {} files.".format(file_count, output_count), "cyan")
+            else:
+                self.log_to_console("No images were split.", "red")
+                return
 
         output_path = self.get_output_path(input_path)
-        self.write_config(input_path, output_path, group_map=group_map)
+        # self.write_config(input_path, output_path, assignment_list=assignment_list)
+        self.write_config(input_path, output_path)
         self.launch_fiji()
 
 
@@ -602,11 +461,6 @@ class FijiRunnerGUI(QMainWindow):
             # Only log the line if NONE of the junk keywords are in it
             if any(key in line.lower() for key in key_keywords):
                 self.log_to_console(line.strip(), "#d8a63b")
-                
-        # for line in data.splitlines():
-        #     # Only log the line if NONE of the junk keywords are in it
-        #     if not any(key in line for key in junk_keywords):
-        #         self.log_to_console(line.strip(), "#eeec62")
 
     def process_finished(self, exit_code, exit_status):
         color = "#5fb3b3" if exit_code == 0 else "#b6b6b6"
@@ -628,23 +482,23 @@ class FijiRunnerGUI(QMainWindow):
                 plots_dir.mkdir(exist_ok=True)
 
                 # Generate boxplot for colony counts
-                if self.combo_group_assignment.currentText() != "None":
-                    grapher.load_summary_file(summary_file)
-                    grapher.boxplot(
-                        x="Group",
-                        y="Colonies",
-                        title="Mean colony count by group"
-                    )
-                    grapher.save_current_plot(plots_dir / "all_colony_counts_boxplot.png")
-                    plt.close()
 
-                    grapher.violin(
-                        x="Group",
-                        y="GeomMeanSize",
-                        title="Mean size by group (geometric mean of colony areas)"
-                    )
-                    grapher.save_current_plot(plots_dir / "all_colony_counts_violinplot.png")
-                    plt.close()
+                grapher.load_summary_file(summary_file)
+                grapher.boxplot(
+                    x="Treatment",
+                    y="Colonies",
+                    title="Mean colony count by group"
+                )
+                grapher.save_current_plot(plots_dir / "all_colony_counts_boxplot.png")
+                plt.close()
+
+                grapher.violin(
+                    x="Treatment",
+                    y="GeomMeanSize",
+                    title="Mean size by group (geometric mean of colony areas)"
+                )
+                grapher.save_current_plot(plots_dir / "all_colony_counts_violinplot.png")
+                plt.close()
 
                 # Generate histograms for each area distribution file
                 for area_distribution_file in area_distribution_files:
@@ -676,11 +530,11 @@ if __name__ == "__main__":
 
     # ctypes allows the icon to be displayed correctly
     import ctypes
-    if sys.platform == "win32":
+    if platform == "win32":
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("countphics.app.1")
 
     base_dir = Path(__file__).resolve().parent
-    icon_path = "{0}{1}assets{1}countphics.ico".format(base_dir, os.sep)
+    icon_path = "{0}{1}assets{1}countphics2.ico".format(base_dir, os.sep)
     
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon(str(icon_path)))

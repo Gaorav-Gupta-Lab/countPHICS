@@ -50,7 +50,7 @@ class FIJIGrapher:
     line 3+ -> TSV header and data
     """
 
-    def __init__(self, style="whitegrid", dpi=120):
+    def __init__(self, style="whitegrid", dpi=200):
         self.style = style
         self.dpi = dpi
         sns.set_style(self.style)
