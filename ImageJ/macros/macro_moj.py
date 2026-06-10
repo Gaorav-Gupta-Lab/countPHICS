@@ -16,7 +16,7 @@ import os
 import sys
 import math
 
-macro_version = '2.2.5'
+macro_version = '2.2.6'
 
 def parse_parameter_file():
     """
@@ -301,158 +301,99 @@ for i, img_path in enumerate(all_images):
     # Is this the very first analysis operation? (For ROI initialization)
     is_global_first = (i == 0)
 
-    # --- 6-Well Logic ---
-    if six_well_flag:
-        w_img = imp.getWidth()
-        h_img = imp.getHeight()
-        well_count = 1
+    size_output_file_name = file_name_base + "_size_distribution.txt"
+    size_output_path = os.path.join(output_directory, "size_distribution_files/", size_output_file_name)
+
+    image_output_file_name = file_name_base + "_counted.jpg"
+    image_output_path = os.path.join(output_directory, "image_outputs/", image_output_file_name)
+
+    if not os.path.exists(os.path.dirname(size_output_path)):
+        os.makedirs(os.path.dirname(size_output_path))
+    if not os.path.exists(os.path.dirname(image_output_path)):
+        os.makedirs(os.path.dirname(image_output_path))
+
+    group_name = "unassigned"
+
+    if group_handling == "automatic":
+        group_name = file_name_base[:file_name_base.rfind('_')] if '_' in file_name_base else file_name_base
+    elif group_handling == "manual":
+        group_name = group_assignment_dict.get(img_path, "unassigned")
+
+    res = count_colonies(imp, img_path, is_global_first, same_roi_flag,threshold_flag, thresh_flag_score, image_output_path)
         
-        for row in range(3):
-            for col in range(2):
-                # Calculate Crop ROI for this well
-                roi = Roi(col*(w_img/2), row*(h_img/3), w_img/2, h_img/3)
-                imp.setRoi(roi)
-                imp_well = imp.crop()
-                imp_well.setTitle(file_name_base + "_Well" + str(well_count))
-                
-                # Determine output filename
-                out_name = file_name_base + "_Well" + str(well_count) + ".txt"
-                out_path = os.path.join(output_directory, out_name)
-                
-                # Check if this is the very first well of the very first image
-                is_first_well = (is_global_first and well_count == 1)
+    area_list = res[0]
+    colony_count = len(area_list) if area_list else 0
 
-                # Analyze
-                res = count_colonies(imp_well, img_path, is_first_well, same_roi_flag, 
-                                     threshold_flag, thresh_flag_score, out_path)
-                
-                # Write an individual text file
-                area_list = res[0]
-                count = len(area_list) if area_list else 0
-                
-                f = open(out_path, 'w')
-                f.write("Number of colonies: " + str(count) + "\n")
-                f.write("Units: " + res[3] + "\n")
-                if area_list:
-                    for area in area_list:
-                        # Unit conversion logic preserved from original
-                        if res[3] == 'cm': area *= 100
-                        elif res[3] == 'inch': area = area * 2.54**2 * 100
-                        f.write(str(area) + "\n")
+    # Write a single image colony distribution file
+    current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+    f = open(size_output_path, 'w')
+    f.write("# countPHICS v" + macro_version + " --- " + current_time + "\n")
+    f.write("# Number of colonies: " + str(colony_count) + "\n")
+    f.write("Colony Area\n")
 
-                # Write to Summary
-                mode = 'w' if is_first_well else 'a'
-                f_sum = open(summary_path, mode)
-                if is_first_well:
-                    f_sum.write("Image\tWell\tCount\tMinThresh\tMaxThresh\n")
-                
-                # Threshold retrieval
-                t_min = globals().get('thres_min', 0)
-                t_max = globals().get('thres_max', 0)
-                    
-                f_sum.write(file_name_base + "\t" + str(well_count) + "\t" + str(colony_count) + "\t" + str(t_min) + "\t" + str(t_max) + "\n")
+    if area_list:
+        f.write("\n".join(str(area) for area in area_list) + "\n")
+    f.close()
 
-                # print(file_name_base + " Well " + str(well_count) + ": " + str(colony_count))
-                if colony_count > 10: thresh_flag_score = False
-                well_count += 1
+    def calculate_median_area(colony_area_list, num_colonies):
+        sorted_areas = sorted(colony_area_list)
 
-    # --- Standard Single Image Logic ---
-    else:
-        size_output_file_name = file_name_base + "_size_distribution.txt"
-        size_output_path = os.path.join(output_directory, "size_distribution_files/", size_output_file_name)
-
-        image_output_file_name = file_name_base + "_counted.jpg"
-        image_output_path = os.path.join(output_directory, "image_outputs/", image_output_file_name)
-
-        if not os.path.exists(os.path.dirname(size_output_path)):
-            os.makedirs(os.path.dirname(size_output_path))
-        if not os.path.exists(os.path.dirname(image_output_path)):
-            os.makedirs(os.path.dirname(image_output_path))
-
-        group_name = "unassigned"
-
-        if group_handling == "automatic":
-            group_name = file_name_base[:file_name_base.rfind('_')] if '_' in file_name_base else file_name_base
-        elif group_handling == "manual":
-            group_name = group_assignment_dict.get(img_path, "unassigned")
-
-        res = count_colonies(imp, img_path, is_global_first, same_roi_flag, 
-                             threshold_flag, thresh_flag_score, image_output_path)
-        
-        area_list = res[0]
-        colony_count = len(area_list) if area_list else 0
-
-        # Write a single image colony distribution file
-        current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
-        f = open(size_output_path, 'w')
-        f.write("# countPHICS v" + macro_version + " --- " + current_time + "\n")
-        f.write("# Number of colonies: " + str(colony_count) + "\n")
-        f.write("Colony Area\n")
-
-        if area_list:
-            f.write("\n".join(str(area) for area in area_list) + "\n")
-        f.close()
-
-        def calculate_median_area(colony_area_list, num_colonies):
-            sorted_areas = sorted(colony_area_list)
-
-            if num_colonies % 2 == 1:
-                return sorted_areas[num_colonies // 2]
-            else:
-                mid1 = sorted_areas[num_colonies // 2 - 1]
-                mid2 = sorted_areas[num_colonies // 2]
-                return (mid1 + mid2) / 2
-
-        def calculate_geometric_mean(colony_area_list, num_colonies):
-            log_sum = 0.0
-
-            for pixel_area in colony_area_list:
-                if pixel_area <= 0:
-                    continue
-                log_sum += math.log(pixel_area)
-
-            return round(math.exp(log_sum / num_colonies), 2)
-
-        if colony_count > 0:
-            median_area = calculate_median_area(area_list, colony_count)
-            geom_mean_area = calculate_geometric_mean(area_list, colony_count)
-            max_area = int(max(area_list))
-            min_area = int(min(area_list))
+        if num_colonies % 2 == 1:
+            return sorted_areas[num_colonies // 2]
         else:
-            median_area = 0.0
-            geom_mean_area = 0.0
-            max_area = 0.0
-            min_area = 0.0
+            mid1 = sorted_areas[num_colonies // 2 - 1]
+            mid2 = sorted_areas[num_colonies // 2]
+            return (mid1 + mid2) / 2
 
+    def calculate_geometric_mean(colony_area_list, num_colonies):
+        log_sum = 0.0
 
-        # Write to Summary
-        if is_global_first:
-            current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+        for pixel_area in colony_area_list:
+            if pixel_area <= 0:
+                continue
+            log_sum += math.log(pixel_area)
 
-            metadata = '# countPHICS v' + macro_version + ' run: '+ current_time + '\n'
+        return round(math.exp(log_sum / num_colonies), 2)
 
-            t_min = globals().get('thres_min', 0)
-            t_max = globals().get('thres_max', 0)
+    if colony_count > 0:
+        median_area = calculate_median_area(area_list, colony_count)
+        geom_mean_area = calculate_geometric_mean(area_list, colony_count)
+        max_area = int(max(area_list))
+        min_area = int(min(area_list))
+    else:
+        median_area = 0.0
+        geom_mean_area = 0.0
+        max_area = 0.0
+        min_area = 0.0
 
-            parameters = '# Parameters: \n' + \
-                        '# AutoThreshold= ' + str(threshold_flag) + '\n' + \
-                        '# SameROI=' + str(same_roi_flag) + '\n' + \
-                        '# SixWell=' + str(six_well_flag) + '\n' + \
-                        '# RollingBall=' + str(rolling_ball) + '\n' + \
-                        '# MinColony=' + str(minimum_col) + '\n' + \
-                        '# MaxColony=' + str(maximum_col) + '\n' + \
-                        '# Circularity=' + str(circ) + '\n' + \
-                        '# Sigma=' + str(sigma) + '\n' \
-                        '# MinThresh=' + str(t_min) + '\n' \
-                        '# MaxThresh=' + str(t_max)
+    # Write to Summary
+    if is_global_first:
+        current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
 
-            header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tColonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\tImage ROI\n')
-            summary_lines.append(header)
+        metadata = '# countPHICS v' + macro_version + ' run: '+ current_time + '\n'
+
+        t_min = globals().get('thres_min', 0)
+        t_max = globals().get('thres_max', 0)
+
+        parameters = '# Parameters: \n' + \
+                    '# AutoThreshold= ' + str(threshold_flag) + '\n' + \
+                    '# SameROI=' + str(same_roi_flag) + '\n' + \
+                    '# SixWell=' + str(six_well_flag) + '\n' + \
+                    '# RollingBall=' + str(rolling_ball) + '\n' + \
+                    '# MinColony=' + str(minimum_col) + '\n' + \
+                    '# MaxColony=' + str(maximum_col) + '\n' + \
+                    '# Circularity=' + str(circ) + '\n' + \
+                    '# Sigma=' + str(sigma) + '\n' \
+                    '# MinThresh=' + str(t_min) + '\n' \
+                    '# MaxThresh=' + str(t_max)
+
+        header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tColonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\tImage ROI\n')
+        summary_lines.append(header)
         
-        row = file_name_base + ".tif\t" + group_name + "\t" + str(colony_count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(roi2) + "\n"
-        summary_lines.append(row)
-        # print("Processed file: " + file_name_base)
-        if colony_count > 10: thresh_flag_score = False
+    row = file_name_base + ".tif\t" + group_name + "\t" + str(colony_count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(roi2) + "\n"
+    summary_lines.append(row)
+    # print("Processed file: " + file_name_base)
+    if colony_count > 10: thresh_flag_score = False
 
     imp.close()
 
