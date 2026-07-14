@@ -24,7 +24,7 @@ from libraries import PreprocessImages
 from libraries.StyleSheetLoader import load_stylesheet
 from libraries.SampleGrouping import GroupAssignmentDialog
 
-__version__ = "2.3.1"
+__version__ = "2.4.0"
 
 class FijiRunnerGUI(QMainWindow):
     def __init__(self):
@@ -62,6 +62,7 @@ class FijiRunnerGUI(QMainWindow):
         self.chk_run_stats = QCheckBox("Run statistical tests after processing", checked=False)
 
         self.group_assignment_label = QLabel("Group assignment:")
+        self.group_assignment_label.setObjectName("group_assignment_label")
         self.combo_group_assignment = QComboBox()
         self.combo_group_assignment.addItems(["None", "Automatic", "Manual"])
 
