@@ -87,8 +87,11 @@ imp = IJ.openImage(first_imp_path)
 cal = imp.getCalibration()
 x = cal.pixelWidth
 units = cal.getUnit()
-units_known = True
+# units_known = True
+units_known = False
 
+"""
+We are using pixels only
 if units == 'mm':
     dpi = 1.0 / (x / 254.0)
 elif units == 'cm':
@@ -97,6 +100,7 @@ elif units == 'inch':
     dpi = 1.0 / x
 else:
     units_known = False
+"""
 
 # --- 3. Parameter Setup ---
 threshold_flag = as_bool(params.get("auto_threshold"))
@@ -134,15 +138,28 @@ minimum_col  = int(params.get("min_colony", int(0.01 * w)))
 maximum_col  = int(params.get("max_colony", int(w * 2)))
 circ         = float(params.get("circularity", 0.5))
 roi_thickness = int(params.get("roi_thickness", 3))
-if not units_known:
-    sigma = float(params.get("sigma", 0.001 * w))
-else:
-    sigma = float(params.get("sigma", (1.9e-6) * dpi**2 + (6.3e-4) * dpi + 1.3))
+treatment_name = params.get("treatment_name", "")
+cell_line = params.get("cell_line", "")
 
-imp.close() # Close the calibration image
+sigma = float(params.get("sigma", 0.001 * w))
+"""
+We are using pixels only
+if units_known:
+    sigma = float(params.get("sigma", (1.9e-6) * dpi ** 2 + (6.3e-4) * dpi + 1.3))
+else:
+    sigma = float(params.get("sigma", 0.001 * w))
+"""
+
+imp.close()  # Close the calibration image
 
 # --- 4. The Refactored Count Function ---
-def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres_iteration_flag, image_output_path,
+def count_colonies(imp,
+                   original_path,
+                   is_first,
+                   Roi_flag,
+                   threshold_flag,
+                   thres_iteration_flag,
+                   image_output_path,
                    roi_def=None):
     """
     Refactored to take original_path instead of image_number strings.
@@ -175,7 +192,9 @@ def count_colonies(imp, original_path, is_first, Roi_flag, threshold_flag, thres
 
     proc_imp.removeScale()
     proc_imp.getProcessor().blurGaussian(sigma)
-    BackgroundSubtracter().subtractBackround(proc_imp.getProcessor(), int(rolling_ball))
+   # WaitForUserDialog("Proc IMP:  " + str(proc_imp)).show()
+
+    BackgroundSubtracter().subtractBackround(proc_imp.getProcessor(),rolling_ball)
 
     # --- ROI Management ---
     def ROI_manager():
@@ -320,16 +339,16 @@ for i, img_path in enumerate(all_images):
         group_name = group_assignment_dict.get(img_path, "unassigned")
 
     res = count_colonies(imp, img_path, is_global_first, same_roi_flag,threshold_flag, thresh_flag_score, image_output_path)
-        
+
     area_list = res[0]
     colony_count = len(area_list) if area_list else 0
 
     # Write a single image colony distribution file
     current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
     f = open(size_output_path, 'w')
-    f.write("# countPHICS v" + macro_version + " --- " + current_time + "\n")
-    f.write("# Number of colonies: " + str(colony_count) + "\n")
-    f.write("Colony Area\n")
+    f.write("# countPHICS2 v" + macro_version + " --- " + current_time + "\n"
+            "# Number of colonies: " + str(colony_count) + "\n"
+            "Colony Area in Square Pixels\n")
 
     if area_list:
         f.write("\n".join(str(area) for area in area_list) + "\n")
@@ -370,29 +389,31 @@ for i, img_path in enumerate(all_images):
     if is_global_first:
         current_time = str(java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
 
-        metadata = '# countPHICS v' + macro_version + ' run: '+ current_time + '\n'
+        metadata = '# countPHICS2 v' + macro_version + ' run: '+ current_time + '\n'
 
         t_min = globals().get('thres_min', 0)
         t_max = globals().get('thres_max', 0)
 
         parameters = '# Parameters: \n' + \
-                    '# AutoThreshold= ' + str(threshold_flag) + '\n' + \
-                    '# SameROI=' + str(same_roi_flag) + '\n' + \
-                    '# SixWell=' + str(six_well_flag) + '\n' + \
-                    '# RollingBall=' + str(rolling_ball) + '\n' + \
-                    '# MinColony=' + str(minimum_col) + '\n' + \
-                    '# MaxColony=' + str(maximum_col) + '\n' + \
-                    '# Circularity=' + str(circ) + '\n' + \
-                    '# Sigma=' + str(sigma) + '\n' \
-                    '# MinThresh=' + str(t_min) + '\n' \
-                    '# MaxThresh=' + str(t_max)
+                    '# AutoThreshold=' + '\t' + str(threshold_flag) + '\n' + \
+                    '# SameROI=' + '\t' + str(same_roi_flag) + '\n' + \
+                    '# SixWell=' + '\t' + str(six_well_flag) + '\n' + \
+                    '# RollingBall=' + '\t' + str(rolling_ball) + '\n' + \
+                    '# MinColony=' + '\t' + str(minimum_col) + '\n' + \
+                    '# MaxColony=' + '\t' + str(maximum_col) + '\n' + \
+                    '# Circularity=' + '\t' + str(circ) + '\n' + \
+                    '# Sigma=' + '\t' + str(sigma) + '\n' \
+                    '# MinThresh=' + '\t' + str(t_min) + '\n' \
+                    '# MaxThresh=' + '\t' + str(t_max) + '\n' \
+                    '# Cell Line=' + '\t' + str(cell_line) + '\n' \
+                    '# Treatment=' + '\t' + str(treatment_name) + '\n'
 
         header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tColonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\tImage ROI\n')
         summary_lines.append(header)
         
     row = file_name_base + ".tif\t" + group_name + "\t" + str(colony_count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(roi2) + "\n"
     summary_lines.append(row)
-    # print("Processed file: " + file_name_base)
+
     if colony_count > 10: thresh_flag_score = False
 
     imp.close()

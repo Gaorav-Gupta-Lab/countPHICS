@@ -3,3 +3,4 @@ matplotlib
 pyside6
 seaborn
 scipy
+tifffile

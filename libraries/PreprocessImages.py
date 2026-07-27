@@ -75,8 +75,3 @@ def split_10cm_dish(input_path, image_files):
         os.remove(file)
 
     return error_msg, file_count, output_count
-
-
-if __name__ == "__main__":
-    image_folder = r"D:\Users\Colony Images"
-    main(image_folder)

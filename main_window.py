@@ -234,7 +234,6 @@ class FijiRunnerGUI(QMainWindow):
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self.cancel_process)
 
-
         self.exit_btn.setObjectName("exit_btn")
         self.exit_btn.setCursor(Qt.PointingHandCursor)
         self.exit_btn.clicked.connect(self.close)
@@ -413,7 +412,7 @@ class FijiRunnerGUI(QMainWindow):
 
         cell_line = self.cell_line_edit.text().strip()
         treatment_name = self.treatment_name_edit.text().strip()
-        print(cell_line, treatment_name)
+
         dlg = GroupAssignmentDialog(image_files, cell_line=cell_line, treatment_name=treatment_name, parent=self)
 
         if dlg.exec() != QDialog.Accepted:

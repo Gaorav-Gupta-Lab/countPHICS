@@ -50,7 +50,7 @@ class FIJIGrapher:
     line 3+ -> TSV header and data
     """
 
-    def __init__(self, style="whitegrid", dpi=200):
+    def __init__(self, style="whitegrid", dpi=300):
         self.style = style
         self.dpi = dpi
         sns.set_style(self.style)
@@ -76,6 +76,8 @@ class FIJIGrapher:
             with open(filepath, "r") as f:
                 header_line = f.readline().strip()
                 _ = f.readline()  # empty spacer line
+                for line in f:
+                    print(line)
 
             self.metadata = self._parse_metadata(header_line)
 
@@ -109,7 +111,6 @@ class FIJIGrapher:
         split_header = header_line.split(" ")
         parts["macro_version"] = split_header[2]
         parts["run_datetime"] = split_header[4] + " " + split_header[5]
-        # print(parts)
 
         return FijiRunMetadata(
             macro_version=parts.get("macro_version", "version_unknown"),
@@ -191,6 +192,7 @@ class FIJIGrapher:
         kde: bool = False,
         title: str | None = None,
     ):
+
         self.assert_columns(x)
 
         # ---- Prepare data ----
