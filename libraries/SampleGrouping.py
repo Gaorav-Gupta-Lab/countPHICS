@@ -43,6 +43,8 @@ class GroupAssignmentDialog(QDialog):
             f"<span style='font-size:13px; color: #302424;'>Enter treatment values and replicate counts below.</span>"
             f"</div>"
         )
+
+        header.setObjectName("header_label")
         header.setWordWrap(True)
         outer.addWidget(header, 0, alignment=Qt.AlignTop)
 
@@ -191,20 +193,28 @@ class GroupAssignmentDialog(QDialog):
             return
         self.accept()
 
-    def get_assignment_list(self) -> list[dict]:
+    # def get_assignment_list(self) -> list[dict]:
+    def get_assignment_list(self) -> str:
         for i in range(1, len(self.rows)):
             if self.rows[i]["same"].isChecked():
                 self._apply_same_as_above(i)
 
-        out = []
+        # out1 = []
+        # Much simpler to build groupings as a string that is eventually converted to a list.
+        out = ""
         for i, row in enumerate(self.rows):
             if not self._row_is_complete(i):
                 break
 
-            out.append({
+            for _ in range(row["replicates"].value()):
+                out += row["treatment"].text() + ","
+
+            """
+            out1.append({
                 "treatment": float(row["treatment"].text()),
                 "replicates": int(row["replicates"].value()),
             })
-
+            """
+        out = out[:-1]
         return out
 

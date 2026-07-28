@@ -16,7 +16,7 @@ import os
 import sys
 import math
 
-macro_version = '2.2.6'
+macro_version = '2.3.0'
 
 def parse_parameter_file():
     """
@@ -105,14 +105,21 @@ else:
 # --- 3. Parameter Setup ---
 threshold_flag = as_bool(params.get("auto_threshold"))
 same_roi_flag = as_bool(params.get("same_roi"))
-six_well_flag = as_bool(params.get("six_well"))
-group_handling = params.get("group_assignment", "None").lower()  # "none", "automatic", or "manual"
+# six_well_flag = as_bool(params.get("six_well"))
+# group_handling = params.get("group_assignment", "None").lower()  # "none", "automatic", or "manual"
+group_handling = "manual"
 
 # GROUP ASSIGNMENT
 if group_handling == "manual":
-    group_assignment_str = params.get("groups", "")
-    group_assignment_dict = {}
+    group_assignment_str = params.get("assignments", "")
+    # group_assignment_dict = {}
+    group_assignment_list = []
 
+    if group_assignment_str:
+        group_assignment_list = group_assignment_str.split(",")
+
+    # ForUserDialog("Group List:  " + str(group_assignment_list)).show()
+    """
     if group_assignment_str:
         for entry in group_assignment_str.split(";;"):
             entry = entry.strip()
@@ -124,24 +131,21 @@ if group_handling == "manual":
             img_path = img_path.replace("/", "\\").strip()
             group = group.strip()
             group_assignment_dict[img_path] = group
+    """
 
-if six_well_flag:
-    w = imp.getWidth()/2
-    h = imp.getHeight()/3
-else:
-    w = imp.getWidth()
-    h = imp.getHeight()
+width = imp.getWidth()
+height = imp.getHeight()
 
 # Advanced Parameters
-rolling_ball = int(params.get("rolling_ball", int(w * 0.0306)))
-minimum_col  = int(params.get("min_colony", int(0.01 * w)))
-maximum_col  = int(params.get("max_colony", int(w * 2)))
+rolling_ball = int(params.get("rolling_ball", int(width * 0.0306)))
+minimum_col  = int(params.get("min_colony", int(0.01 * width)))
+maximum_col  = int(params.get("max_colony", int(width * 2)))
 circ         = float(params.get("circularity", 0.5))
 roi_thickness = int(params.get("roi_thickness", 3))
 treatment_name = params.get("treatment_name", "")
 cell_line = params.get("cell_line", "")
 
-sigma = float(params.get("sigma", 0.001 * w))
+sigma = float(params.get("sigma", 0.001 * width))
 """
 We are using pixels only
 if units_known:
@@ -178,7 +182,7 @@ def count_colonies(imp,
     blue.setCalibration(cal)
 
     # Auto-select the best channel based on contrast (StdDev), virtually always green
-    roi_chk = OvalRoi(w/4, h/4, w/2, h/2)
+    roi_chk = OvalRoi(width/4, height/4, width/2, height/2)
     red.setRoi(roi_chk); green.setRoi(roi_chk); blue.setRoi(roi_chk)
     
     stats_red = red.getStatistics(Measurements.STD_DEV).stdDev
@@ -192,19 +196,18 @@ def count_colonies(imp,
 
     proc_imp.removeScale()
     proc_imp.getProcessor().blurGaussian(sigma)
-   # WaitForUserDialog("Proc IMP:  " + str(proc_imp)).show()
 
     BackgroundSubtracter().subtractBackround(proc_imp.getProcessor(),rolling_ball)
 
     # --- ROI Management ---
     def ROI_manager():
         IJ.run("Roi Defaults...", "color=orange stroke=" + str(roi_thickness) + " group=0")
-        proc_imp.setRoi(OvalRoi(w/10, h/10, w/1.2, h/1.2))
+        proc_imp.setRoi(OvalRoi(width/10, height/10,width/1.2, height/1.2))
         proc_imp.show()
 
         class MyListener(ActionListener):
             def actionPerformed(self, event):
-                proc_imp.setRoi(OvalRoi(w/10, h/10, w/1.2, h/1.2))
+                proc_imp.setRoi(OvalRoi(width/10, height/10, width/1.2, height/1.2))
                 Toolbar().setTool("oval")
 
         dia2 = NonBlockingGenericDialog("ROI SELECTION")
@@ -331,13 +334,13 @@ for i, img_path in enumerate(all_images):
     if not os.path.exists(os.path.dirname(image_output_path)):
         os.makedirs(os.path.dirname(image_output_path))
 
-    group_name = "unassigned"
-
+    group_name = group_assignment_list[i]
+    """
     if group_handling == "automatic":
         group_name = file_name_base[:file_name_base.rfind('_')] if '_' in file_name_base else file_name_base
     elif group_handling == "manual":
         group_name = group_assignment_dict.get(img_path, "unassigned")
-
+    """
     res = count_colonies(imp, img_path, is_global_first, same_roi_flag,threshold_flag, thresh_flag_score, image_output_path)
 
     area_list = res[0]
@@ -397,7 +400,6 @@ for i, img_path in enumerate(all_images):
         parameters = '# Parameters: \n' + \
                     '# AutoThreshold=' + '\t' + str(threshold_flag) + '\n' + \
                     '# SameROI=' + '\t' + str(same_roi_flag) + '\n' + \
-                    '# SixWell=' + '\t' + str(six_well_flag) + '\n' + \
                     '# RollingBall=' + '\t' + str(rolling_ball) + '\n' + \
                     '# MinColony=' + '\t' + str(minimum_col) + '\n' + \
                     '# MaxColony=' + '\t' + str(maximum_col) + '\n' + \

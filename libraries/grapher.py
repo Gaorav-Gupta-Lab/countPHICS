@@ -76,8 +76,6 @@ class FIJIGrapher:
             with open(filepath, "r") as f:
                 header_line = f.readline().strip()
                 _ = f.readline()  # empty spacer line
-                for line in f:
-                    print(line)
 
             self.metadata = self._parse_metadata(header_line)
 
@@ -319,8 +317,9 @@ class FIJIGrapher:
             self.assert_columns(x)
 
         self._new_figure()
+        # ToDo Add smoothing value.  Need less smoothing.
         sns.violinplot(data=self.data, x=x, y=y, inner="quartile")
-
+        sns.stripplot(data=self.data, x=x, y=y, alpha=0.3, size=2.5)
         plt.xlabel(x or "")
         plt.ylabel(y)
         plt.title(title or f"{y} distribution")
