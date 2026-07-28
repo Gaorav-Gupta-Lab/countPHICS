@@ -76,12 +76,6 @@ QLineEdit:placeholder {
     color: #8e96a3;
 }
 
-QLineEdit[same_as_above_locked="true"] {
-    background-color: #2a2a2a;
-    color: #9aa0a6;
-}
-
-
 /* Make spinboxes look cleaner */
 QSpinBox::up-button, QSpinBox::down-button,
 QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
@@ -201,3 +195,126 @@ QPushButton#browse_btn {
 }
 QPushButton#browse_btn:hover { background-color: #316363; }
 QPushButton#browse_btn:pressed { background-color: #3f434a; }
+
+/* --- Group assignment dialog --- */
+QDialog#group_assignment_dialog {
+    background-color: #20262d;
+    color: #f4f7f8;
+}
+
+QDialog#group_assignment_dialog QLabel#group_dialog_title {
+    color: #f4f7f8;
+    font-size: 25px;
+    font-weight: 700;
+}
+
+QDialog#group_assignment_dialog QLabel#group_dialog_instruction {
+    color: #b8c3c9;
+    font-size: 15px;
+}
+
+QDialog#group_assignment_dialog QFrame#group_dialog_context,
+QDialog#group_assignment_dialog QFrame#group_dialog_assignments {
+    background-color: #29323a;
+    border: 1px solid #43515c;
+    border-radius: 10px;
+}
+
+QDialog#group_assignment_dialog QLabel#group_dialog_context_label {
+    color: #9fb0ba;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+QDialog#group_assignment_dialog QLabel#group_dialog_context_value {
+    color: #f4f7f8;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+QDialog#group_assignment_dialog QLabel#group_dialog_section_title {
+    color: #78c9c8;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+QDialog#group_assignment_dialog QScrollArea#group_dialog_scroll,
+QDialog#group_assignment_dialog QWidget#group_dialog_content {
+    background: transparent;
+    border: none;
+}
+
+QDialog#group_assignment_dialog QLabel#group_dialog_column_header {
+    color: #d8e2e6;
+    background-color: #20262d;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 7px 10px;
+}
+
+QDialog#group_assignment_dialog QLineEdit#group_dialog_input,
+QDialog#group_assignment_dialog QSpinBox#group_dialog_input {
+    background-color: #151a1f;
+    border: 1px solid #52616c;
+    border-radius: 7px;
+    color: #f4f7f8;
+    font-size: 16px;
+    padding: 7px 10px;
+}
+
+QDialog#group_assignment_dialog QLineEdit#group_dialog_input:hover,
+QDialog#group_assignment_dialog QSpinBox#group_dialog_input:hover {
+    border-color: #78aeb0;
+}
+
+QDialog#group_assignment_dialog QLineEdit#group_dialog_input:focus,
+QDialog#group_assignment_dialog QSpinBox#group_dialog_input:focus {
+    border: 2px solid #78c9c8;
+}
+
+QDialog#group_assignment_dialog QLineEdit#group_dialog_input:placeholder {
+    color: #9aaab3;
+}
+
+QDialog#group_assignment_dialog QPushButton#group_dialog_continue,
+QDialog#group_assignment_dialog QPushButton#group_dialog_cancel {
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    min-width: 120px;
+    padding: 8px 16px;
+}
+
+QDialog#group_assignment_dialog QPushButton#group_dialog_continue {
+    background-color: #187a7a;
+    border: 1px solid #78c9c8;
+    color: #ffffff;
+}
+
+QDialog#group_assignment_dialog QPushButton#group_dialog_continue:hover {
+    background-color: #1c8585;
+}
+
+QDialog#group_assignment_dialog QPushButton#group_dialog_continue:pressed {
+    background-color: #126565;
+}
+
+QDialog#group_assignment_dialog QPushButton#group_dialog_cancel {
+    background-color: #36434d;
+    border: 1px solid #73838e;
+    color: #f4f7f8;
+}
+
+QDialog#group_assignment_dialog QPushButton#group_dialog_cancel:hover {
+    background-color: #465660;
+}
+
+QDialog#group_assignment_dialog QPushButton#group_dialog_cancel:pressed {
+    background-color: #2a353d;
+}
+
+QDialog#group_assignment_dialog QPushButton#group_dialog_continue:focus,
+QDialog#group_assignment_dialog QPushButton#group_dialog_cancel:focus {
+    border: 2px solid #f0c36b;
+}

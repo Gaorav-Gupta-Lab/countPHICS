@@ -417,6 +417,7 @@ class FijiRunnerGUI(QMainWindow):
 
         if dlg.exec() != QDialog.Accepted:
             self.log_to_console("Launch canceled during group assignment.", "#d8a63b")
+            return
 
         assignment_list = dlg.get_assignment_list()
 
