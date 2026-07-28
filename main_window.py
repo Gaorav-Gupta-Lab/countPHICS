@@ -9,6 +9,7 @@ from sys import platform
 import datetime
 import matplotlib.pyplot as plt
 import natsort
+import pandas as pd
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
@@ -481,6 +482,7 @@ class FijiRunnerGUI(QMainWindow):
                 # Generate boxplot for colony counts
 
                 grapher.load_summary_file(summary_file)
+                summary_data = grapher.data.copy()
                 grapher.boxplot(
                     x="Group",
                     # x="Treatment",
@@ -490,14 +492,35 @@ class FijiRunnerGUI(QMainWindow):
                 grapher.save_current_plot(plots_dir / "all_colony_counts_boxplot.png")
                 plt.close()
 
-                grapher.violin(
-                    x="Group",
-                    # x="Treatment",
-                    y="GeomMeanSize",
-                    title="Mean size by group (geometric mean of colony areas)"
-                )
-                grapher.save_current_plot(plots_dir / "all_colony_counts_violinplot.png")
-                plt.close()
+                image_groups = {
+                    Path(image_name).stem: group
+                    for image_name, group in zip(summary_data["ImageName"], summary_data["Group"])
+                }
+                colony_area_frames = []
+                for area_distribution_file in area_distribution_files:
+                    image_stem = area_distribution_file.stem.removesuffix("_size_distribution")
+                    group = image_groups.get(image_stem)
+                    if group is None:
+                        self.log_to_console(
+                            f"Skipping {area_distribution_file.name}: no matching summary image", "#d8a63b"
+                        )
+                        continue
+
+                    area_distribution_data = grapher.load_area_distribution_file(area_distribution_file)
+                    colony_area_frames.append(pd.DataFrame({
+                        "Group": group,
+                        "ColonyArea": area_distribution_data.iloc[:, 0],
+                    }))
+
+                if colony_area_frames:
+                    grapher.set_data(pd.concat(colony_area_frames, ignore_index=True))
+                    grapher.violin(
+                        x="Group",
+                        y="ColonyArea",
+                        title="Colony area distribution by group"
+                    )
+                    grapher.save_current_plot(plots_dir / "all_colony_sizes_violinplot.png")
+                    plt.close()
 
                 # Generate histograms for each area distribution file
                 for area_distribution_file in area_distribution_files:

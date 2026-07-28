@@ -317,9 +317,8 @@ class FIJIGrapher:
             self.assert_columns(x)
 
         self._new_figure()
-        # ToDo Add smoothing value.  Need less smoothing.
-        sns.violinplot(data=self.data, x=x, y=y, inner="quartile")
-        sns.stripplot(data=self.data, x=x, y=y, alpha=0.3, size=2.5)
+        sns.violinplot(data=self.data, x=x, y=y, inner="quartile", bw_adjust=0.5)
+        sns.stripplot(data=self.data, x=x, y=y, alpha=0.5, color="black", size=4, jitter=True)
         plt.xlabel(x or "")
         plt.ylabel(y)
         plt.title(title or f"{y} distribution")
