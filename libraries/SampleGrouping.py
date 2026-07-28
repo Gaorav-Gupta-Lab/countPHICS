@@ -38,11 +38,13 @@ class GroupAssignmentDialog(QDialog):
 
         header = QLabel(
             f"<div style='line-height:1.15;'>"
-            f"<span style='font-size:15px; font-weight:700;'>Cell line:</span> {self.cell_line}<br>"
-            f"<span style='font-size:15px; font-weight:700;'>Treatment name:</span> {self.treatment_name}<br>"
-            f"<span style='font-size:13px;'>Enter treatment values and replicate counts below.</span>"
+            f"<span style='font-size:15px; font-weight:700; color: #302424;'>Cell line:</span> {self.cell_line}<br>"
+            f"<span style='font-size:15px; font-weight:700; color: #302424;'>Treatment name:</span> {self.treatment_name}<br>"
+            f"<span style='font-size:13px; color: #302424;'>Enter treatment values and replicate counts below.</span>"
             f"</div>"
         )
+
+        header.setObjectName("header_label")
         header.setWordWrap(True)
         outer.addWidget(header, 0, alignment=Qt.AlignTop)
 
@@ -61,9 +63,16 @@ class GroupAssignmentDialog(QDialog):
         self.grid.setColumnStretch(1, 2)
         self.grid.setColumnStretch(2, 1)
 
-        self.grid.addWidget(QLabel("<b>Treatment</b>"), 0, 0)
-        self.grid.addWidget(QLabel("<b>Replicates</b>"), 0, 1)
-        self.grid.addWidget(QLabel("<b>Same as above</b>"), 0, 2, alignment=Qt.AlignCenter)
+        header_treatment = QLabel("Treatment")
+        header_treatment.setObjectName("header_label")
+        header_replicates = QLabel("Replicates")
+        header_replicates.setObjectName("header_label")
+        header_same = QLabel("Same as above")
+        header_same.setObjectName("header_label")
+
+        self.grid.addWidget(header_treatment, 0, 0)
+        self.grid.addWidget(header_replicates, 0, 1)
+        self.grid.addWidget(header_same, 0, 2, alignment=Qt.AlignCenter)
 
         scroll.setWidget(content)
 
@@ -184,20 +193,28 @@ class GroupAssignmentDialog(QDialog):
             return
         self.accept()
 
-    def get_assignment_list(self) -> list[dict]:
+    # def get_assignment_list(self) -> list[dict]:
+    def get_assignment_list(self) -> str:
         for i in range(1, len(self.rows)):
             if self.rows[i]["same"].isChecked():
                 self._apply_same_as_above(i)
 
-        out = []
+        # out1 = []
+        # Much simpler to build groupings as a string that is eventually converted to a list.
+        out = ""
         for i, row in enumerate(self.rows):
             if not self._row_is_complete(i):
                 break
 
-            out.append({
+            for _ in range(row["replicates"].value()):
+                out += row["treatment"].text() + ","
+
+            """
+            out1.append({
                 "treatment": float(row["treatment"].text()),
                 "replicates": int(row["replicates"].value()),
             })
-
+            """
+        out = out[:-1]
         return out
 

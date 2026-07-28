@@ -24,7 +24,7 @@ from libraries import PreprocessImages
 from libraries.StyleSheetLoader import load_stylesheet
 from libraries.SampleGrouping import GroupAssignmentDialog
 
-__version__ = "2.3.1"
+__version__ = "2.5.0"
 
 class FijiRunnerGUI(QMainWindow):
     def __init__(self):
@@ -62,6 +62,7 @@ class FijiRunnerGUI(QMainWindow):
         self.chk_run_stats = QCheckBox("Run statistical tests after processing", checked=False)
 
         self.group_assignment_label = QLabel("Group assignment:")
+        self.group_assignment_label.setObjectName("group_assignment_label")
         self.combo_group_assignment = QComboBox()
         self.combo_group_assignment.addItems(["None", "Automatic", "Manual"])
 
@@ -233,7 +234,6 @@ class FijiRunnerGUI(QMainWindow):
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self.cancel_process)
 
-
         self.exit_btn.setObjectName("exit_btn")
         self.exit_btn.setCursor(Qt.PointingHandCursor)
         self.exit_btn.clicked.connect(self.close)
@@ -358,7 +358,7 @@ class FijiRunnerGUI(QMainWindow):
         lines = [
             "input=" + str(input_path),
             "output=" + str(output_path),
-            "cell_line=" + self.cell_line_edit.text().strip(),
+            "cell_line=" + self.cell_line_edit.text().strip() ,
             "treatment_name=" + self.treatment_name_edit.text().strip(),
 
             "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
@@ -410,16 +410,13 @@ class FijiRunnerGUI(QMainWindow):
 
         group_map = None
 
-        cell_line = self.cell_line_edit.text().strip()
-        treatment_name = self.treatment_name_edit.text().strip()
-        print(cell_line, treatment_name)
-        dlg = GroupAssignmentDialog(image_files, cell_line=cell_line, treatment_name=treatment_name, parent=self)
+        dlg = GroupAssignmentDialog(image_files,
+                                    cell_line=self.cell_line_edit.text().strip(),
+                                    treatment_name=self.treatment_name_edit.text().strip(), parent=self)
 
         if dlg.exec() != QDialog.Accepted:
             self.log_to_console("Launch canceled during group assignment.", "#d8a63b")
-        """    
-            return
-        """
+
         assignment_list = dlg.get_assignment_list()
 
         # Split image files
@@ -435,8 +432,8 @@ class FijiRunnerGUI(QMainWindow):
                 return
 
         output_path = self.get_output_path(input_path)
-        # self.write_config(input_path, output_path, assignment_list=assignment_list)
-        self.write_config(input_path, output_path)
+        self.write_config(input_path, output_path, assignment_list=assignment_list)
+        # self.write_config(input_path, output_path)
         self.launch_fiji()
 
 
@@ -485,7 +482,8 @@ class FijiRunnerGUI(QMainWindow):
 
                 grapher.load_summary_file(summary_file)
                 grapher.boxplot(
-                    x="Treatment",
+                    x="Group",
+                    # x="Treatment",
                     y="Colonies",
                     title="Mean colony count by group"
                 )
@@ -493,7 +491,8 @@ class FijiRunnerGUI(QMainWindow):
                 plt.close()
 
                 grapher.violin(
-                    x="Treatment",
+                    x="Group",
+                    # x="Treatment",
                     y="GeomMeanSize",
                     title="Mean size by group (geometric mean of colony areas)"
                 )

@@ -22,7 +22,7 @@ def split_10cm_dish(input_path, image_files):
 
     # static_file = "D:{}Colony Images{}01.tif".format(os.sep, os.sep, os.sep)
 
-    # Define image start/stop.  These are all millimeters. The order is x_start, x_end, y_start, y_end.
+    # Define image start/stop for 10 cm dishes.  These are all millimeters. The order is x_start, x_end, y_start, y_end.
     image_sizes = [(0, 85, 0, 86), (89, 176, 0, 86), (0, 85, 88.5, 176)]
     split_count = len(image_sizes)
     output_count = 0
@@ -53,6 +53,12 @@ def split_10cm_dish(input_path, image_files):
        # Read the image.
         image = tifffile.imread(file)
 
+        # if the user attempts to split a small image, return an error and stop.
+        if image.shape[0] < 176 or image.shape[1] < 176:
+            error_msg = "Image {} is less than the required 176 x 176 mm for 3 x 10 cm dishes.".format(file)
+            return error_msg, file_count, output_count
+
+        # Split image
         for i in range(split_count):
             x_start, x_end, y_start, y_end = (int(image_sizes[i][0]*dpmm), int(image_sizes[i][1]*dpmm),
                                               int(image_sizes[i][2]*dpmm), int(image_sizes[i][3]*dpmm))
@@ -69,8 +75,3 @@ def split_10cm_dish(input_path, image_files):
         os.remove(file)
 
     return error_msg, file_count, output_count
-
-
-if __name__ == "__main__":
-    image_folder = r"D:\Users\Colony Images"
-    main(image_folder)

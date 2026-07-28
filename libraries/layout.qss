@@ -12,7 +12,7 @@ QWidget {
 QLabel#title {
     font-size: 20px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: #e6e6e6;
 }
 
 /* --- Cards / group boxes --- */
@@ -41,11 +41,24 @@ QComboBox {
     color: #e6e6e6;
 }
 
+QLabel#header_label {
+    font-weight: bold;
+    font-size: 19px;
+    color: #5fb3b3;
+}
+
 QLabel#group_assignment_label {
     font-weight: 600;
     font-style: italic;
+    color: #e6e6e6;
 }
 
+/* Replicates label style (if used elsewhere) */
+QLabel#replicates_label {
+    font-weight: 600;
+    font-style: italic;
+    color: #e6e6e6;
+}
 /* --- Inputs --- */
 QLineEdit, QSpinBox, QDoubleSpinBox {
     background-color: #1c1f24;
