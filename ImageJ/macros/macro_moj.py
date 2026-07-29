@@ -400,6 +400,7 @@ for i, img_path in enumerate(all_images):
         parameters = '# Parameters: \n' + \
                     '# AutoThreshold=' + '\t' + str(threshold_flag) + '\n' + \
                     '# SameROI=' + '\t' + str(same_roi_flag) + '\n' + \
+                    '# Image ROI=' + '\t' + str(roi2) + '\n' + \
                     '# RollingBall=' + '\t' + str(rolling_ball) + '\n' + \
                     '# MinColony=' + '\t' + str(minimum_col) + '\n' + \
                     '# MaxColony=' + '\t' + str(maximum_col) + '\n' + \
@@ -410,10 +411,10 @@ for i, img_path in enumerate(all_images):
                     '# Cell Line=' + '\t' + str(cell_line) + '\n' \
                     '# Treatment=' + '\t' + str(treatment_name) + '\n'
 
-        header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tColonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\tImage ROI\n')
+        header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tColonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\n')
         summary_lines.append(header)
         
-    row = file_name_base + ".tif\t" + group_name + "\t" + str(colony_count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\t" + str(roi2) + "\n"
+    row = file_name_base + ".tif\t" + group_name + "\t" + str(colony_count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\n"
     summary_lines.append(row)
 
     if colony_count > 10: thresh_flag_score = False

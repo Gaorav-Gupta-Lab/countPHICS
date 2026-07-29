@@ -178,7 +178,6 @@ class FIJIGrapher:
         outpath.parent.mkdir(parents=True, exist_ok=True)
         plt.tight_layout()
         plt.savefig(outpath)
-        print(f"Saved plot → {outpath}")
 
     # ----------------------------
     # Plots
@@ -317,8 +316,35 @@ class FIJIGrapher:
             self.assert_columns(x)
 
         self._new_figure()
-        sns.violinplot(data=self.data, x=x, y=y, inner="quartile", bw_adjust=0.5)
-        sns.stripplot(data=self.data, x=x, y=y, alpha=0.5, color="black", size=4, jitter=True)
+        
+        sns.violinplot(
+            data=self.data,
+            x=x,
+            y=y,
+            inner="quartile",
+            bw_adjust=0.2,
+            inner_kws=dict(color="black"),
+            zorder=1,
+        )
+        # sns.stripplot(
+        #     data=self.data,
+        #     x=x,
+        #     y=y,
+        #     alpha=0.5,
+        #     color="black",
+        #     size=2,
+        #     jitter=True,
+        #     zorder=2,
+        # )
+        median_values = self.data.groupby(x)[y].median() if x else [self.data[y].median()]
+        for i, median in enumerate(median_values):
+            plt.plot(
+                [i - 0.1, i + 0.1],
+                [median, median],
+                color="red",
+                linewidth=3,
+                zorder=10,
+            )
         plt.xlabel(x or "")
         plt.ylabel(y)
         plt.title(title or f"{y} distribution")
