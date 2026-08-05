@@ -179,6 +179,14 @@ QPushButton#cancel_btn:disabled {
     color: #8a8f96;
 }
 
+QPushButton#process_data_btn:hover { background-color: #72F3F3; }
+QPushButton#process_data_btn:pressed { background-color: #72F3F3; }
+QPushButton#process_data_btn:disabled {
+    background-color: #39413d;
+    border: 1px solid #39413d;
+    color: #8a8f96;
+}
+
 /* Neutral */
 QPushButton#exit_btn {
     background-color: #3c4048;
