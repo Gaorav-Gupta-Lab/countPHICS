@@ -164,6 +164,8 @@ def data_processing(input_path=None, output_path=None):
         normalized_colony_average = round(sum(ctrl_normal_dict[cell_line_key]) / len(ctrl_normal_dict[cell_line_key]), 1)
 
         # This is the data for plotting the survival curve
+        if cell_line_key not in normalized_average_colonies:
+            normalized_average_colonies[cell_line_key] = []
         normalized_average_colonies[cell_line_key].append((normalized_colony_average, float(normalized_colony_sem)))
 
         survival_dict[survival_key] = survival
@@ -201,7 +203,7 @@ def data_processing(input_path=None, output_path=None):
     output_string = "Comparison\tp-Value\n"
     for i in range(cell_line_count-1):
         output_string = significance(df, cell_line_names[i:], output_string)
-    print("Final Output String \n", output_string)
+    return ("Final Output String \n", output_string)
     """
     output_file = "C:{0}Users{0}dennis{0}Documents{0}Anova_output.csv".format(os.sep)
     with open(output_file, 'w') as f:
