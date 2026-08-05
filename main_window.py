@@ -26,7 +26,7 @@ from libraries.DataProcessing import data_processing
 from libraries.StyleSheetLoader import load_stylesheet
 from libraries.SampleGrouping import GroupAssignmentDialog
 
-__version__ = "2.5.0"
+__version__ = "2.5.5"
 
 class FijiRunnerGUI(QMainWindow):
     def __init__(self):
@@ -410,11 +410,12 @@ class FijiRunnerGUI(QMainWindow):
         input_path = self.get_input_path()
         if not input_path:
             return
-        output_path = self.get_output_path()
+        output_path = self.get_output_path(input_path)
         if not output_path:
             return
-
-        data_processing(input_path, output_path)
+        print(input_path, output_path)
+        msg = data_processing(input_path, output_path)
+        self.log_to_console(msg, color="green")
 
     def start_process(self):
         input_path = self.get_input_path()
