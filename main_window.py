@@ -22,6 +22,7 @@ from PySide6.QtGui import QTextCursor, QIcon
 
 from libraries.grapher import FIJIGrapher
 from libraries import PreprocessImages
+from libraries.DataProcessing import data_processing
 from libraries.StyleSheetLoader import load_stylesheet
 from libraries.SampleGrouping import GroupAssignmentDialog
 
@@ -54,6 +55,7 @@ class FijiRunnerGUI(QMainWindow):
 
         self.run_btn = QPushButton("▶ LAUNCH FIJI")
         self.cancel_btn = QPushButton("CANCEL PROCESS")
+        self.process_data_btn = QPushButton("Run Stats")
         self.exit_btn = QPushButton("✖ EXIT")
         
         # self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
@@ -235,12 +237,17 @@ class FijiRunnerGUI(QMainWindow):
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self.cancel_process)
 
+        self.process_data_btn.setObjectName("process_data_btn")
+        self.process_data_btn.setCursor(Qt.PointingHandCursor)
+        self.process_data_btn.clicked.connect(self.process_data)
+
         self.exit_btn.setObjectName("exit_btn")
         self.exit_btn.setCursor(Qt.PointingHandCursor)
         self.exit_btn.clicked.connect(self.close)
 
         button_layout.addWidget(self.run_btn)
         button_layout.addWidget(self.cancel_btn)
+        button_layout.addWidget(self.process_data_btn)
         button_layout.addWidget(self.exit_btn)
         
         layout.addLayout(button_layout)
@@ -398,6 +405,16 @@ class FijiRunnerGUI(QMainWindow):
         self.run_btn.setEnabled(False)
         self.cancel_btn.setEnabled(True)
         self.process.start(executable, args)
+
+    def process_data(self):
+        input_path = self.get_input_path()
+        if not input_path:
+            return
+        output_path = self.get_output_path()
+        if not output_path:
+            return
+
+        data_processing(input_path, output_path)
 
     def start_process(self):
         input_path = self.get_input_path()
