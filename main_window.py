@@ -14,7 +14,7 @@ import pandas as pd
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QTextEdit, QHBoxLayout,
     QFileDialog, QCheckBox, QSpinBox, QGroupBox, QDoubleSpinBox, QLineEdit, QLabel,
-    QGridLayout, QDialog, QScrollArea, QComboBox
+    QGridLayout, QDialog
 )
 
 from PySide6.QtCore import QProcess, Qt
@@ -44,6 +44,7 @@ class FijiRunnerGUI(QMainWindow):
         self.process.readyReadStandardOutput.connect(self.handle_stdout)
         self.process.readyReadStandardError.connect(self.handle_stderr)
         self.process.finished.connect(self.process_finished)
+        self.active_summary_file: Path | None = None
 
         self.console = QTextEdit()
 
@@ -60,16 +61,9 @@ class FijiRunnerGUI(QMainWindow):
         self.process_data_btn = QPushButton("RUN STATS")
         self.exit_btn = QPushButton("✖ EXIT")
         
-        # self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
         self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
         self.chk_plotting = QCheckBox("Generate plots after processing", checked=True)
         self.chk_split_image = QCheckBox("Split Image", checked=False)
-        # self.chk_run_stats = QCheckBox("Run statistical tests after processing", checked=False)
-
-        self.group_assignment_label = QLabel("Group assignment:")
-        self.group_assignment_label.setObjectName("group_assignment_label")
-        self.combo_group_assignment = QComboBox()
-        self.combo_group_assignment.addItems(["None", "Automatic", "Manual"])
 
         self.cell_line_label = QLabel("Cell line:")
         self.cell_line_edit = QLineEdit()
@@ -154,8 +148,6 @@ class FijiRunnerGUI(QMainWindow):
         general_layout.addWidget(self.chk_same_roi)
         general_layout.addWidget(self.chk_split_image)
         general_layout.addWidget(self.chk_plotting)
-        # general_layout.addWidget(self.chk_run_stats)
-
         general_box.setLayout(general_layout)
         settings_container.addWidget(general_box, 1)
 
@@ -279,9 +271,6 @@ class FijiRunnerGUI(QMainWindow):
         Construct the command to run ImageJ macro with input and output paths
         Current_dir is subject to error depending on how the script is run.
         """
-        # current_dir = Path(__file__).parent.resolve()
-        # script_path = current_dir / "macro_moj.py"
-
         base_dir = os.path.dirname(os.path.abspath(__file__))
         script_path = "{0}{1}ImageJ{1}macros{1}macro_moj.py".format(base_dir,os.sep)
 
@@ -292,7 +281,6 @@ class FijiRunnerGUI(QMainWindow):
             fiji_path = "{0}{1}ImageJ{1}ImageJ-win64.exe".format(base_dir,os.sep)
 
         else:
-            # fiji_path = Path("/Users/pguerra/Library/CloudStorage/OneDrive-UniversityofNorthCarolinaatChapelHill/Desktop/Fiji")
             fiji_path = Path("/Applications/Fiji.app")
 
         # if not fiji_path.exists():
@@ -348,34 +336,16 @@ class FijiRunnerGUI(QMainWindow):
         os.makedirs(config_dir, exist_ok=True)
         config_path = f"{config_dir}{os.sep}countPHICS_params.txt"
 
-        """
+        # Legacy fields intentionally omitted from the parameter file:
+        # "input" is superseded by the explicit "images" list, and
+        # "split_image" is handled by Python before FIJI is launched.
         lines = [
-            "input=" + str(input_path),
-            "output=" + str(output_path),
-            "cell_line=" + self.cell_line_edit.text().strip(),
-            "treatment_name=" + self.treatment_name_edit.text().strip(),
-
-            "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
-            "split_image=" + str(self.chk_split_image.isChecked()).lower(),
-            "group_assignment=" + str(self.combo_group_assignment.currentText()).lower(),
-
-            "rolling_ball=" + str(self.spin_rolling.value()),
-            "min_colony=" + str(self.spin_min_col.value()),
-            "max_colony=" + str(self.spin_max_col.value()),
-            "circularity=" + str(self.spin_circ.value()),
-            "sigma=" + str(self.spin_sigma.value()),
-            "roi_thickness=" + str(self.spin_roi_thickness.value()),
-        ]
-        """
-        lines = [
-            "input=\t" + str(input_path),
             "output=\t" + str(output_path),
             "cell_line=\t" + self.cell_line_edit.text().strip() ,
             "CTRL_Sample=\t" + str(self.control_line_checkbox.isChecked()).lower(),
             "treatment_name=\t" + self.treatment_name_edit.text().strip(),
 
             "same_roi=\t" + str(self.chk_same_roi.isChecked()).lower(),
-            "split_image=\t" + str(self.chk_split_image.isChecked()).lower(),
 
             "rolling_ball=\t" + str(self.spin_rolling.value()),
             "min_colony=\t" + str(self.spin_min_col.value()),
@@ -432,8 +402,6 @@ class FijiRunnerGUI(QMainWindow):
             self.log_to_console("ERROR: No image files found in input folder.", "red")
             return
 
-        group_map = None
-
         dlg = GroupAssignmentDialog(image_files,
                                     cell_line=self.cell_line_edit.text().strip(),
                                     treatment_name=self.treatment_name_edit.text().strip(), parent=self)
@@ -457,8 +425,10 @@ class FijiRunnerGUI(QMainWindow):
                 return
 
         output_path = self.get_output_path(input_path)
+        self.active_summary_file = (
+            output_path / f"Summary_{self.cell_line_edit.text().strip()}.txt"
+        )
         self.write_config(input_path, output_path, assignment_list=assignment_list)
-        # self.write_config(input_path, output_path)
         self.launch_fiji()
 
 
@@ -489,10 +459,22 @@ class FijiRunnerGUI(QMainWindow):
         self.log_to_console(f"<b>PROCESS FINISHED (Code: {exit_code})</b>", color)
         self.run_btn.setEnabled(True)
         self.cancel_btn.setEnabled(False)
+
+        input_path = self.get_input_path()
+        if not input_path:
+            return
+
+        output_dir = self.get_output_path(input_path)
+        summary_file = self.active_summary_file or (
+            output_dir / f"Summary_{self.cell_line_edit.text().strip()}.txt"
+        )
+
         self.on_fiji_finished(
-            summary_file=self.get_output_path(self.get_input_path()) / "Summary.txt",
-            area_distribution_files=[file for file in Path(self.get_output_path(self.get_input_path()), "size_distribution_files").glob("*size_distribution.txt")],
-            output_dir=self.get_output_path(self.get_input_path())
+            summary_file=summary_file,
+            area_distribution_files=list(
+                (output_dir / "size_distribution_files").glob("*size_distribution.txt")
+            ),
+            output_dir=output_dir,
         )
 
     def on_fiji_finished(self, summary_file: Path, area_distribution_files: list[Path], output_dir: Path):

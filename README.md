@@ -11,10 +11,9 @@ Count and Plot HIstograms of Colony Size 2 (countPHICS2) is designed to automate
 
 - **User-friendly GUI** - Clean, modern interface built with PySide6
 - **Automated colony detection** - Advanced image processing with customizable parameters
-- **Batch processing** - Process multiple images or multi-well plates automatically
+- **Batch processing** - Process multiple colony images automatically
 - **Statistical analysis** - Weibull distribution fitting, KS tests, and descriptive statistics
 - **Data visualization** - Automatic generation of histograms, boxplots, and distribution plots
-- **6-well plate support (beta)** - Specialized analysis mode for multi-well imaging
 - **Comprehensive reporting** - Detailed summary files with metadata and parameters
 
 ## Requirements
@@ -43,20 +42,23 @@ Count and Plot HIstograms of Colony Size 2 (countPHICS2) is designed to automate
 3. **Clone or download this repository**
    ```bash
    git clone <repository-url>
-   cd countPHICS
+   cd countPHICS2
    ```
 ## Project Structure
 
 ```
-countPHICS/
-├── countPHICS2.exe        # One Step Executable
+countPHICS2/
+├── countPHICS.bat         # Windows launcher
 ├── main_window.py         # Main GUI application
-├── macros/
-│   └── macro_moj.py       # FIJI/ImageJ macro (Jython)
-│   └── grapher.py         # Data visualization and analysis
-├── layout.qss             # Qt stylesheet (optional)
+├── ImageJ/
+│   ├── ImageJ-win64.exe   # Bundled Windows FIJI/ImageJ executable
+│   └── macros/
+│       └── macro_moj.py   # FIJI/ImageJ macro (Jython)
+├── libraries/
+│   ├── grapher.py         # Data visualization and analysis
+│   └── layout.qss         # Qt stylesheet
 ├── assets/
-│   └── countphics.ico     # Application icon
+│   └── countphics2.ico    # Application icon
 └── README.md              # This file
 ```
 
@@ -87,9 +89,8 @@ python main_window.py
 
    **General Settings:**
    - **Use same ROI for all images** - Define region of interest once, apply to all images
-   - **6-well plate analysis** - Enable if images contain 6-well plates
+   - **Split Image** - Crop supported composite TIFF scans into separate dish images
    - **Generate plots after processing** - Automatically create visualization plots
-   - **Enable advanced settings (deprecated, will be removed)** - Access fine-tuning parameters
 
    **Advanced Settings** :
    - **Rolling Ball Radius** - Background subtraction parameter
@@ -99,19 +100,19 @@ python main_window.py
    - **Sigma** - Gaussian blur strength before detection
    - **ROI Thickness** - Line thickness when selecting plate ROI
 
-5. **Launch processing**
+4. **Launch processing**
    - Click "▶ LAUNCH FIJI" to start analysis
    - Monitor progress in the console window
    - FIJI will open and process images automatically
 
-6. **Review results**
+5. **Review results**
    - Results are saved in the user defined output directory with the following structure:
      ```
      countPHICS_output/
-     ├── countPHICS_params.txt          # Analysis parameters
-     ├── Summary.txt                    # Main results table
+     ├── Summary_<cell-line>.txt        # Cell-line-specific results table
      ├── plots/                         # Visualization plots
      │   ├── all_colony_counts_boxplot.png
+     │   ├── all_colony_sizes_violinplot.png
      │   └── *_area_hist.png
      ├── size_distribution_files/       # Per-image colony sizes
      │   └── *_size_distribution.txt
@@ -121,27 +122,30 @@ python main_window.py
 
 ## Output Files
 
-### Summary.txt
+### `Summary_<cell-line>.txt`
+
+The summary filename is derived from the **Cell line** field in the GUI. For
+example, entering `TP53KO` produces `Summary_TP53KO.txt`. The plotting workflow
+loads this same cell-line-specific file after FIJI finishes.
 
 Tab-separated values file containing:
 - **Metadata** - Macro version, run timestamp, parameters
 - **Per-image results**:
   - Image name
-  - Group (derived from filename prefix)
+  - Group (assigned in the group-definition dialog)
   - Number of colonies
   - Min/max counted colony size
   - Median colony size
   - Geometric mean colony size
-  - ROI coordinates
 
 Example:
 ```
-# countPHICS v2.2.2 run: 2026-02-11 11:30:22
+# countPHICS2 v2.3.0 run: 2026-02-11 11:30:22
 
 # Parameters: 
 # AutoThreshold= False
 # SameROI=True
-# SixWell=False
+# Image ROI=Roi[Oval, x, y, width, height, pos]
 # RollingBall=62
 # MinColony=150
 # MaxColony=10000
@@ -150,11 +154,11 @@ Example:
 # MinThresh=0.0
 # MaxThresh=240.0
 
-Image - Group - Num colonies - MinCountedSize - MaxCountedSize - MedianSize - GeomMeanSize - ImageROI
-sampleWT_01.tif - sampleWT - 145 - 152 - 8234 - 1024 - 987.42 - Roi[Oval, x, y, width, height, pos]
-sampleWT_02.tif - sampleWT - 138 - 156 - 7891 - 1012 - 953.18 - Roi[Oval, x, y, width, height, pos]
-sampleKO_01.tif - sampleKO - 89 - 150 - 5621 - 894 - 915.23 - Roi[Oval, x, y, width, height, pos]
-sampleWT_02.tif - sampleKO - 94 - 153 - 5963 - 942 - 907.42 - Roi[Oval, x, y, width, height, pos]
+ImageName\tGroup\tColonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize
+sampleWT_01.tif\t0\t145\t152\t8234\t1024\t987.42
+sampleWT_02.tif\t0\t138\t156\t7891\t1012\t953.18
+sampleKO_01.tif\t5\t89\t150\t5621\t894\t915.23
+sampleKO_02.tif\t5\t94\t153\t5963\t942\t907.42
 ```
 
 ### Size Distribution Files
@@ -186,9 +190,9 @@ Individual `.jpg` files for each image containing:
 ### Output Plots
 The `grapher.py` module provides powerful analysis capabilities using `matplotlib` and `seaborn`:
 
-- Boxplot summarizing colony counts among replicates in each described group. **(WIP: needs group implementation)**
+- Boxplot summarizing colony counts among replicates in each assigned group.
 
-- Violin plot summarizing colony size distribution in each described group. **(WIP: needs group implementation)**
+- Violin plot summarizing colony size distributions in each assigned group.
 
 - Individual histograms for each image summarizing size ditribution:
 
@@ -220,16 +224,6 @@ The FIJI macro (`macro_moj.py`) performs the following steps:
 5. **Thresholding** - Set thresholding based on initial image
 6. **Particle analysis** - Size and circularity filtering
 7. **Result compilation** - Colony counting and area measurements
-
-## Advanced Usage
-
-### 6-Well Plate Mode (Beta)
-
-When enabled, the macro:
-- Automatically divides the image into 6 equal regions (2 rows × 3 columns)
-- Processes each well independently
-- Generates separate counts and statistics per well
-- Useful for high-throughput screening
 
 ## Troubleshooting
 
@@ -296,10 +290,9 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 ## Version History
 
-- **v2.2.2** (Current)
+- **v2.5.5** (Current GUI)
   - Full Python GUI implementation
   - Advanced plotting with Weibull fitting
-  - Improved 6-well plate support
   - Enhanced metadata tracking
 
 ## Support
