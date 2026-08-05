@@ -90,48 +90,15 @@ units = cal.getUnit()
 # units_known = True
 units_known = False
 
-"""
-We are using pixels only
-if units == 'mm':
-    dpi = 1.0 / (x / 254.0)
-elif units == 'cm':
-    dpi = 1.0 / (x / 2.54)
-elif units == 'inch':
-    dpi = 1.0 / x
-else:
-    units_known = False
-"""
-
 # --- 3. Parameter Setup ---
 threshold_flag = as_bool(params.get("auto_threshold"))
 same_roi_flag = as_bool(params.get("same_roi"))
-# six_well_flag = as_bool(params.get("six_well"))
-# group_handling = params.get("group_assignment", "None").lower()  # "none", "automatic", or "manual"
-group_handling = "manual"
 
-# GROUP ASSIGNMENT
-if group_handling == "manual":
-    group_assignment_str = params.get("assignments", "")
-    # group_assignment_dict = {}
-    group_assignment_list = []
+group_assignment_str = params.get("assignments", "")
+group_assignment_list = []
 
-    if group_assignment_str:
-        group_assignment_list = group_assignment_str.split(",")
-
-    # ForUserDialog("Group List:  " + str(group_assignment_list)).show()
-    """
-    if group_assignment_str:
-        for entry in group_assignment_str.split(";;"):
-            entry = entry.strip()
-            if not entry:
-                continue
-            if '|||' not in entry:
-                continue
-            img_path, group = entry.split("|||", 1)
-            img_path = img_path.replace("/", "\\").strip()
-            group = group.strip()
-            group_assignment_dict[img_path] = group
-    """
+if group_assignment_str:
+    group_assignment_list = group_assignment_str.split(",")
 
 width = imp.getWidth()
 height = imp.getHeight()
@@ -144,6 +111,7 @@ circ         = float(params.get("circularity", 0.5))
 roi_thickness = int(params.get("roi_thickness", 3))
 treatment_name = params.get("treatment_name", "")
 cell_line = params.get("cell_line", "")
+ctrl_sample = params.get("CTRL_Sample", "")
 
 sigma = float(params.get("sigma", 0.001 * width))
 """
@@ -304,7 +272,7 @@ def count_colonies(imp,
 # print("Processing " + str(len(all_images)) + " images...")
 thresh_flag_score = True
 
-summary_path = os.path.join(output_directory, 'Summary.txt')
+summary_path = os.path.join(output_directory, 'Summary_' + cell_line + '.txt')
 summary_lines = []
 
 for i, img_path in enumerate(all_images):
@@ -335,12 +303,6 @@ for i, img_path in enumerate(all_images):
         os.makedirs(os.path.dirname(image_output_path))
 
     group_name = group_assignment_list[i]
-    """
-    if group_handling == "automatic":
-        group_name = file_name_base[:file_name_base.rfind('_')] if '_' in file_name_base else file_name_base
-    elif group_handling == "manual":
-        group_name = group_assignment_dict.get(img_path, "unassigned")
-    """
     res = count_colonies(imp, img_path, is_global_first, same_roi_flag,threshold_flag, thresh_flag_score, image_output_path)
 
     area_list = res[0]
@@ -409,6 +371,7 @@ for i, img_path in enumerate(all_images):
                     '# MinThresh=' + '\t' + str(t_min) + '\n' \
                     '# MaxThresh=' + '\t' + str(t_max) + '\n' \
                     '# Cell Line=' + '\t' + str(cell_line) + '\n' \
+                    '# CTRL Sample=' + '\t' + str(ctrl_sample) + '\n' \
                     '# Treatment=' + '\t' + str(treatment_name) + '\n'
 
         header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tColonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\n')

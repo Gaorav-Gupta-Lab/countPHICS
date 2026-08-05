@@ -159,6 +159,20 @@ QPushButton#run_btn:disabled {
     color: #8a8f96;
 }
 
+/* Data Processing */
+QPushButton#process_data_btn {
+    background-color: #5050cf;
+    border: 1px solid #1e1a72;
+}
+
+QPushButton#process_data_btn:hover { background-color: #666ea5; }
+QPushButton#process_data_btn:pressed { background-color: #252274; }
+QPushButton#process_data_btn:disabled {
+    background-color: #39413d;
+    border: 1px solid #39413d;
+    color: #8a8f96;
+}
+
 /* Danger */
 QPushButton#cancel_btn {
     background-color: #b33a3a;
@@ -173,13 +187,6 @@ QPushButton#cancel_btn:disabled {
     color: #8a8f96;
 }
 
-QPushButton#process_data_btn:hover { background-color: #72F3F3; }
-QPushButton#process_data_btn:pressed { background-color: #72F3F3; }
-QPushButton#process_data_btn:disabled {
-    background-color: #39413d;
-    border: 1px solid #39413d;
-    color: #8a8f96;
-}
 
 /* Neutral */
 QPushButton#exit_btn {

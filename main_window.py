@@ -52,17 +52,19 @@ class FijiRunnerGUI(QMainWindow):
 
         self.output_edit = QLineEdit()
         self.output_btn = QPushButton("Browse Output")
+        
+        self.control_line_checkbox = QCheckBox("Control Cell Line (for stats)", checked=False)
 
         self.run_btn = QPushButton("▶ LAUNCH FIJI")
         self.cancel_btn = QPushButton("CANCEL PROCESS")
-        self.process_data_btn = QPushButton("Run Stats")
+        self.process_data_btn = QPushButton("RUN STATS")
         self.exit_btn = QPushButton("✖ EXIT")
         
         # self.chk_auto_thresh = QCheckBox("Automatic threshold (UNSTABLE; Not Recommended)")
         self.chk_same_roi = QCheckBox("Use same ROI for all images", checked=True)
         self.chk_plotting = QCheckBox("Generate plots after processing", checked=True)
         self.chk_split_image = QCheckBox("Split Image", checked=False)
-        self.chk_run_stats = QCheckBox("Run statistical tests after processing", checked=False)
+        # self.chk_run_stats = QCheckBox("Run statistical tests after processing", checked=False)
 
         self.group_assignment_label = QLabel("Group assignment:")
         self.group_assignment_label.setObjectName("group_assignment_label")
@@ -130,9 +132,11 @@ class FijiRunnerGUI(QMainWindow):
         grid.addWidget(self.output_label, 1, 0)
         grid.addWidget(self.output_edit, 1, 1)
         grid.addWidget(self.output_btn, 1, 2)
+        
 
         grid.addWidget(self.cell_line_label, 2, 0)
         grid.addWidget(self.cell_line_edit, 2, 1)
+        grid.addWidget(self.control_line_checkbox, 2, 2)
 
         grid.addWidget(self.treatment_name_label, 3, 0)
         grid.addWidget(self.treatment_name_edit, 3, 1)
@@ -150,7 +154,7 @@ class FijiRunnerGUI(QMainWindow):
         general_layout.addWidget(self.chk_same_roi)
         general_layout.addWidget(self.chk_split_image)
         general_layout.addWidget(self.chk_plotting)
-        general_layout.addWidget(self.chk_run_stats)
+        # general_layout.addWidget(self.chk_run_stats)
 
         general_box.setLayout(general_layout)
         settings_container.addWidget(general_box, 1)
@@ -364,20 +368,21 @@ class FijiRunnerGUI(QMainWindow):
         ]
         """
         lines = [
-            "input=" + str(input_path),
-            "output=" + str(output_path),
-            "cell_line=" + self.cell_line_edit.text().strip() ,
-            "treatment_name=" + self.treatment_name_edit.text().strip(),
+            "input=\t" + str(input_path),
+            "output=\t" + str(output_path),
+            "cell_line=\t" + self.cell_line_edit.text().strip() ,
+            "CTRL_Sample=\t" + str(self.control_line_checkbox.isChecked()).lower(),
+            "treatment_name=\t" + self.treatment_name_edit.text().strip(),
 
-            "same_roi=" + str(self.chk_same_roi.isChecked()).lower(),
-            "split_image=" + str(self.chk_split_image.isChecked()).lower(),
+            "same_roi=\t" + str(self.chk_same_roi.isChecked()).lower(),
+            "split_image=\t" + str(self.chk_split_image.isChecked()).lower(),
 
-            "rolling_ball=" + str(self.spin_rolling.value()),
-            "min_colony=" + str(self.spin_min_col.value()),
-            "max_colony=" + str(self.spin_max_col.value()),
-            "circularity=" + str(self.spin_circ.value()),
-            "sigma=" + str(self.spin_sigma.value()),
-            "roi_thickness=" + str(self.spin_roi_thickness.value()),
+            "rolling_ball=\t" + str(self.spin_rolling.value()),
+            "min_colony=\t" + str(self.spin_min_col.value()),
+            "max_colony=\t" + str(self.spin_max_col.value()),
+            "circularity=\t" + str(self.spin_circ.value()),
+            "sigma=\t" + str(self.spin_sigma.value()),
+            "roi_thickness=\t" + str(self.spin_roi_thickness.value()),
         ]
 
         image_files = self.list_image_files(input_path)

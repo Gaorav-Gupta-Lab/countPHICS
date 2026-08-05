@@ -100,7 +100,7 @@ def significance(df, cell_list, output_string):
 
 
 def data_processing(input_path=None, output_path=None):
-    input_path = "D:{0}Colony Images{0}".format(os.sep)
+    # input_path = "D:{0}Colony Images{0}".format(os.sep)
     cell_line = ""
     cell_line_names = []
     cell_line_count = 0
