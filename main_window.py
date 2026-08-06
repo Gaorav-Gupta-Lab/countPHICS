@@ -22,7 +22,7 @@ from PySide6.QtGui import QTextCursor, QIcon
 
 from libraries.grapher import FIJIGrapher
 from libraries import PreprocessImages
-from libraries.DataProcessing import data_processing
+from libraries.DataProcessing import DataProcessingError, data_processing
 from libraries.StyleSheetLoader import load_stylesheet
 from libraries.SampleGrouping import GroupAssignmentDialog
 
@@ -326,11 +326,13 @@ class FijiRunnerGUI(QMainWindow):
         image_files = [
             str(file)
             for file in Path(input_path).glob("*")
-            if file.suffix.lower() in [".tif", ".tiff", ".png", ".jpg", ".jpeg"]
+            if file.suffix.lower() in [".tif", ".tiff"]
         ]
         return natsort.natsorted(image_files)
 
-    def write_config(self, input_path, output_path, assignment_list=None):
+    def write_config(
+        self, input_path, output_path, assignment_list=None, seeded_cell_list=None
+    ):
         base_path = os.path.dirname(os.path.abspath(__file__))
         config_dir = os.path.join(base_path, "config_dir")
         os.makedirs(config_dir, exist_ok=True)
@@ -360,6 +362,8 @@ class FijiRunnerGUI(QMainWindow):
 
         if assignment_list:
             lines.append("assignments=" + str(assignment_list))
+        if seeded_cell_list:
+            lines.append("seeded_cells=" + str(seeded_cell_list))
 
         with open(config_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
@@ -388,9 +392,20 @@ class FijiRunnerGUI(QMainWindow):
         output_path = self.get_output_path(input_path)
         if not output_path:
             return
-        print(input_path, output_path)
-        msg = data_processing(input_path, output_path)
-        self.log_to_console(msg, color="green")
+        try:
+            msg = data_processing(output_path)
+        except DataProcessingError as exc:
+            self.log_to_console(f"Statistics failed: {exc}", color="red")
+            return
+        except Exception as exc:
+            self.log_to_console(f"Statistics failed unexpectedly: {exc}", color="red")
+            return
+
+        self.log_to_console("<b>STATISTICS COMPLETE</b>", "#5fb3b3")
+        for line in msg.splitlines()[1:]:
+            self.console.moveCursor(QTextCursor.End)
+            self.console.insertHtml(f"<span style='color: green;'>{line}</span><br>")
+            self.console.ensureCursorVisible()
 
     def start_process(self):
         input_path = self.get_input_path()
@@ -411,6 +426,7 @@ class FijiRunnerGUI(QMainWindow):
             return
 
         assignment_list = dlg.get_assignment_list()
+        seeded_cell_list = dlg.get_seeded_cell_list()
 
         # Split image files
         if self.chk_split_image.isChecked():
@@ -428,7 +444,12 @@ class FijiRunnerGUI(QMainWindow):
         self.active_summary_file = (
             output_path / f"Summary_{self.cell_line_edit.text().strip()}.txt"
         )
-        self.write_config(input_path, output_path, assignment_list=assignment_list)
+        self.write_config(
+            input_path,
+            output_path,
+            assignment_list=assignment_list,
+            seeded_cell_list=seeded_cell_list,
+        )
         self.launch_fiji()
 
 
@@ -536,7 +557,10 @@ class FijiRunnerGUI(QMainWindow):
                     grapher.histogram(
                         x=area_distribution_data.columns.tolist()[0],
                         bins=30,
-                        title="Colony Area Distribution"
+                        xmin=self.spin_min_col.value(),
+                        xmax=self.spin_max_col.value(),
+                        title="Colony Area Distribution",
+
                     )
                     grapher.save_current_plot(plots_dir / f"{area_distribution_file.stem}_area_hist.png")
                     plt.close()

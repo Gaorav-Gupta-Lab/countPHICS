@@ -6,7 +6,7 @@ current last row becomes complete.
 
 from PySide6.QtWidgets import (
     QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QSpinBox, QLineEdit, QLabel,
-    QGridLayout, QDialog, QScrollArea, QFrame
+    QGridLayout, QDialog, QScrollArea, QFrame, QMessageBox
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator
@@ -41,7 +41,10 @@ class GroupAssignmentDialog(QDialog):
         title.setObjectName("group_dialog_title")
         outer.addWidget(title)
 
-        instruction = QLabel("Define each treatment value and the number of matching image replicates.")
+        instruction = QLabel(
+            "Define each treatment value, its image replicates, and optionally "
+            "the number of seeded cells."
+        )
         instruction.setObjectName("group_dialog_instruction")
         instruction.setWordWrap(True)
         outer.addWidget(instruction)
@@ -53,12 +56,14 @@ class GroupAssignmentDialog(QDialog):
         context_layout.setHorizontalSpacing(18)
         context_layout.setVerticalSpacing(6)
 
-        cell_line_label = QLabel("Cell line")
+        cell_line_label = QLabel("Cell line:")
         cell_line_label.setObjectName("group_dialog_context_label")
+        cell_line_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         cell_line_value = QLabel(self.cell_line)
         cell_line_value.setObjectName("group_dialog_context_value")
-        treatment_label = QLabel("Treatment name")
+        treatment_label = QLabel("Treatment name:")
         treatment_label.setObjectName("group_dialog_context_label")
+        treatment_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         treatment_value = QLabel(self.treatment_name)
         treatment_value.setObjectName("group_dialog_context_value")
 
@@ -95,6 +100,7 @@ class GroupAssignmentDialog(QDialog):
 
         self.grid.setColumnStretch(0, 3)
         self.grid.setColumnStretch(1, 2)
+        self.grid.setColumnStretch(2, 2)
         self.grid.setRowMinimumHeight(0, 38)
 
         header_treatment = QLabel("Treatment")
@@ -103,9 +109,13 @@ class GroupAssignmentDialog(QDialog):
         header_replicates = QLabel("Replicates")
         header_replicates.setObjectName("group_dialog_column_header")
         header_replicates.setFixedHeight(38)
+        header_seeded_cells = QLabel("Seeded cells (optional)")
+        header_seeded_cells.setObjectName("group_dialog_column_header")
+        header_seeded_cells.setFixedHeight(38)
 
         self.grid.addWidget(header_treatment, 0, 0)
         self.grid.addWidget(header_replicates, 0, 1)
+        self.grid.addWidget(header_seeded_cells, 0, 2)
 
         scroll.setWidget(content)
 
@@ -126,7 +136,7 @@ class GroupAssignmentDialog(QDialog):
         outer.addLayout(btn_row)
 
         self._append_empty_row()
-        self.resize(560, 600)
+        self.resize(720, 600)
 
     def _append_empty_row(self):
         idx = len(self.rows)
@@ -143,12 +153,22 @@ class GroupAssignmentDialog(QDialog):
         replicates_spin.setSpecialValueText("")
         replicates_spin.valueChanged.connect(self._on_row_changed)
 
+        seeded_cells_spin = QSpinBox()
+        seeded_cells_spin.setObjectName("group_dialog_input")
+        seeded_cells_spin.setRange(0, 100_000_000)
+        seeded_cells_spin.setSpecialValueText("")
+        seeded_cells_spin.setToolTip(
+            "Optional number of cells seeded for each replicate in this group."
+        )
+
         self.grid.addWidget(treatment_edit, idx + 1, 0)
         self.grid.addWidget(replicates_spin, idx + 1, 1)
+        self.grid.addWidget(seeded_cells_spin, idx + 1, 2)
 
         self.rows.append({
             "treatment": treatment_edit,
             "replicates": replicates_spin,
+            "seeded_cells": seeded_cells_spin,
         })
 
     def _row_is_complete(self, idx: int) -> bool:
@@ -167,25 +187,47 @@ class GroupAssignmentDialog(QDialog):
         assignments = self.get_assignment_list()
         if not assignments:
             return
+
+        completed_rows = [
+            row for index, row in enumerate(self.rows) if self._row_is_complete(index)
+        ]
+        seeded_values = [row["seeded_cells"].value() for row in completed_rows]
+
+        # Seeded-cell counts are optional, but partial values would produce an
+        # invalid normalization. Require all rows once any value is supplied.
+        if any(seeded_values) and not all(seeded_values):
+            QMessageBox.warning(
+                self,
+                "Missing seeded-cell count",
+                "Enter seeded cells for every treatment row, or leave the "
+                "entire seeded-cells column blank.",
+            )
+            return
         self.accept()
 
-    # def get_assignment_list(self) -> list[dict]:
     def get_assignment_list(self) -> str:
-        # out1 = []
-        # Much simpler to build groupings as a string that is eventually converted to a list.
-        out = ""
+        """Return one treatment value for every image replicate."""
+        assignments = []
         for i, row in enumerate(self.rows):
             if not self._row_is_complete(i):
                 break
 
-            for _ in range(row["replicates"].value()):
-                out += row["treatment"].text() + ","
+            assignments.extend(
+                [row["treatment"].text().strip()] * row["replicates"].value()
+            )
+        return ",".join(assignments)
 
-            """
-            out1.append({
-                "treatment": float(row["treatment"].text()),
-                "replicates": int(row["replicates"].value()),
-            })
-            """
-        out = out[:-1]
-        return out
+    def get_seeded_cell_list(self) -> str:
+        """Return one seeded-cell count for every image replicate, if supplied."""
+        seeded_cells = []
+        for i, row in enumerate(self.rows):
+            if not self._row_is_complete(i):
+                break
+
+            value = row["seeded_cells"].value()
+            seeded_cells.extend([str(value)] * row["replicates"].value())
+
+        # A zero means that the optional seeded-cell column was left blank.
+        if not any(value != "0" for value in seeded_cells):
+            return ""
+        return ",".join(seeded_cells)

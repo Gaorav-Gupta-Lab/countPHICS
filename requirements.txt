@@ -1,6 +1,9 @@
-natsort
 matplotlib
+natsort
+numpy
+pandas
 pyside6
 seaborn
 scipy
+statsmodels
 tifffile

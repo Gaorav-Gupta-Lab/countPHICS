@@ -12,7 +12,7 @@ Count and Plot HIstograms of Colony Size 2 (countPHICS2) is designed to automate
 - **User-friendly GUI** - Clean, modern interface built with PySide6
 - **Automated colony detection** - Advanced image processing with customizable parameters
 - **Batch processing** - Process multiple colony images automatically
-- **Statistical analysis** - Weibull distribution fitting, KS tests, and descriptive statistics
+- **Statistical analysis** - Weibull fitting, KS tests, survival normalization, and pairwise ANOVA
 - **Data visualization** - Automatic generation of histograms, boxplots, and distribution plots
 - **Comprehensive reporting** - Detailed summary files with metadata and parameters
 
@@ -28,6 +28,8 @@ Count and Plot HIstograms of Colony Size 2 (countPHICS2) is designed to automate
   - seaborn
   - scipy
   - natsort
+  - statsmodels
+  - tifffile
 
 ### Installation
 #### Manual Download and Setup
@@ -36,7 +38,7 @@ Count and Plot HIstograms of Colony Size 2 (countPHICS2) is designed to automate
 
 2. **Install Python dependencies (if not using executable)**
    ```bash
-   pip install PySide6 pandas numpy matplotlib seaborn scipy natsort
+   pip install PySide6 pandas numpy matplotlib seaborn scipy natsort statsmodels tifffile
    ```
 
 3. **Clone or download this repository**
@@ -92,6 +94,12 @@ python main_window.py
    - **Split Image** - Crop supported composite TIFF scans into separate dish images
    - **Generate plots after processing** - Automatically create visualization plots
 
+   **Group Assignment:**
+   - Enter each treatment dose and its number of image replicates.
+   - **Seeded cells** is optional. Leave the entire column blank to use the
+     original colony-count normalization. If seeded-cell counts are used, enter
+     a value for every treatment row.
+
    **Advanced Settings** :
    - **Rolling Ball Radius** - Background subtraction parameter
    - **Min Colony Size** - Minimum area to count as colony
@@ -110,9 +118,11 @@ python main_window.py
      ```
      countPHICS_output/
      ├── Summary_<cell-line>.txt        # Cell-line-specific results table
+     ├── statistics_summary.txt         # ANOVA report and dose summary
      ├── plots/                         # Visualization plots
      │   ├── all_colony_counts_boxplot.png
      │   ├── all_colony_sizes_violinplot.png
+     │   ├── kill_curve.png
      │   └── *_area_hist.png
      ├── size_distribution_files/       # Per-image colony sizes
      │   └── *_size_distribution.txt
@@ -128,12 +138,17 @@ The summary filename is derived from the **Cell line** field in the GUI. For
 example, entering `TP53KO` produces `Summary_TP53KO.txt`. The plotting workflow
 loads this same cell-line-specific file after FIJI finishes.
 
+Summary columns are padded so they line up in monospaced text editors, while
+real tab characters remain between fields. The file can therefore still be
+copied into Excel or opened as a tab-delimited table without losing columns.
+
 Tab-separated values file containing:
 - **Metadata** - Macro version, run timestamp, parameters
 - **Per-image results**:
   - Image name
   - Group (assigned in the group-definition dialog)
   - Number of colonies
+  - Optional number of seeded cells
   - Min/max counted colony size
   - Median colony size
   - Geometric mean colony size
@@ -154,11 +169,11 @@ Example:
 # MinThresh=0.0
 # MaxThresh=240.0
 
-ImageName\tGroup\tColonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize
-sampleWT_01.tif\t0\t145\t152\t8234\t1024\t987.42
-sampleWT_02.tif\t0\t138\t156\t7891\t1012\t953.18
-sampleKO_01.tif\t5\t89\t150\t5621\t894\t915.23
-sampleKO_02.tif\t5\t94\t153\t5963\t942\t907.42
+ImageName\tGroup\tColonies\tSeededCells\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize
+sampleWT_01.tif\t0\t145\t500\t152\t8234\t1024\t987.42
+sampleWT_02.tif\t0\t138\t500\t156\t7891\t1012\t953.18
+sampleKO_01.tif\t5\t89\t1000\t150\t5621\t894\t915.23
+sampleKO_02.tif\t5\t94\t1000\t153\t5963\t942\t907.42
 ```
 
 ### Size Distribution Files
@@ -198,6 +213,31 @@ The `grapher.py` module provides powerful analysis capabilities using `matplotli
 
 <img src=examples/example_size_distribution_area_hist.png alt="plot" height="300">
 
+### Kill Curve and Statistical Report
+
+After processing two or more cell lines into the same `countPHICS_output`
+folder, click **RUN STATS**. Each cell line must have a unique name and a
+treatment group `0` with a nonzero mean colony value. Zero or one cell line may
+be marked as the control.
+
+The analysis normalizes every image to the mean treatment-0 colony count for
+its own cell line. When seeded-cell counts are supplied, it first divides each
+colony count by its seeded-cell count and normalizes those colony rates instead.
+It then runs a type-II ANOVA for every pair of cell lines using
+`Survival ~ C(Cell_Line) * C(Treatment)`.
+
+The analysis produces:
+
+- `statistics_summary.txt`, a readable tab-separated report containing the
+  dose-level survival summary, pairwise interaction p-values, significance
+  labels, and the complete ANOVA table for every comparison.
+- `plots/kill_curve.png`, showing each cell line in a different color with
+  mean survival and SEM error bars at each treatment dose.
+
+Significance labels use `ns` for p ≥ 0.05, followed by `*`, `**`, `***`, and
+`****` for p < 0.05, 0.01, 0.001, and 0.0001 respectively. A comparison that
+cannot be estimated is retained in the report and shown as `NA` on the plot.
+
 
 ### Available Plot Types
 
@@ -205,6 +245,7 @@ The `grapher.py` module provides powerful analysis capabilities using `matplotli
 - **boxplot()** - Group comparisons with overlaid strip plots
 - **scatter()** - Correlation analysis
 - **violin()** - Distribution shape visualization
+- **kill_curve()** - Mean survival with SEM for each cell line and dose
 
 ### Statistical Features
 

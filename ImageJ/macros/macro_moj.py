@@ -96,9 +96,13 @@ same_roi_flag = as_bool(params.get("same_roi"))
 
 group_assignment_str = params.get("assignments", "")
 group_assignment_list = []
+seeded_cells_str = params.get("seeded_cells", "")
+seeded_cell_list = []
 
 if group_assignment_str:
     group_assignment_list = group_assignment_str.split(",")
+if seeded_cells_str:
+    seeded_cell_list = seeded_cells_str.split(",")
 
 width = imp.getWidth()
 height = imp.getHeight()
@@ -114,13 +118,6 @@ cell_line = params.get("cell_line", "")
 ctrl_sample = params.get("CTRL_Sample", "")
 
 sigma = float(params.get("sigma", 0.001 * width))
-"""
-We are using pixels only
-if units_known:
-    sigma = float(params.get("sigma", (1.9e-6) * dpi ** 2 + (6.3e-4) * dpi + 1.3))
-else:
-    sigma = float(params.get("sigma", 0.001 * w))
-"""
 
 imp.close()  # Close the calibration image
 
@@ -303,6 +300,7 @@ for i, img_path in enumerate(all_images):
         os.makedirs(os.path.dirname(image_output_path))
 
     group_name = group_assignment_list[i]
+    seeded_cells = seeded_cell_list[i] if seeded_cell_list else ""
     res = count_colonies(imp, img_path, is_global_first, same_roi_flag,threshold_flag, thresh_flag_score, image_output_path)
 
     area_list = res[0]
@@ -374,10 +372,10 @@ for i, img_path in enumerate(all_images):
                     '# CTRL Sample=' + '\t' + str(ctrl_sample) + '\n' \
                     '# Treatment=' + '\t' + str(treatment_name) + '\n'
 
-        header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tColonies\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\n')
+        header = (metadata + "\n" + parameters + '\n' + "\n" + 'ImageName\tGroup\tColonies\tSeededCells\tMinCountedSize\tMaxCountedSize\tMedianSize\tGeomMeanSize\n')
         summary_lines.append(header)
         
-    row = file_name_base + ".tif\t" + group_name + "\t" + str(colony_count) + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\n"
+    row = file_name_base + ".tif\t" + group_name + "\t" + str(colony_count) + "\t" + seeded_cells + "\t" + str(min_area) + "\t" + str(max_area) + "\t" + str(median_area) + "\t" + str(geom_mean_area) + "\n"
     summary_lines.append(row)
 
     if colony_count > 10: thresh_flag_score = False

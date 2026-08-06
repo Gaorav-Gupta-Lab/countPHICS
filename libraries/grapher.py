@@ -89,6 +89,12 @@ class FIJIGrapher:
                 skip_blank_lines=True
             )
 
+            # Summary columns are padded for plain-text readability. Tabs still
+            # delimit the fields, so remove only the display padding after load.
+            self.data.columns = self.data.columns.str.strip()
+            for column in self.data.select_dtypes(include="object").columns:
+                self.data[column] = self.data[column].str.strip()
+
             # print(
             #     f"Loaded {len(self.data)} rows from {filepath.name}"
             # )
@@ -173,11 +179,14 @@ class FIJIGrapher:
         plt.figure(figsize=figsize, dpi=self.dpi)
 
     @staticmethod
-    def save_current_plot(outpath: str | Path):
+    def save_current_plot(outpath: str | Path, svg=False):
         outpath = Path(outpath)
         outpath.parent.mkdir(parents=True, exist_ok=True)
         plt.tight_layout()
-        plt.savefig(outpath)
+        if svg:
+            plt.savefig(outpath, format="svg", bbox_inches="tight")
+        else:
+            plt.savefig(outpath, bbox_inches="tight")
 
     # ----------------------------
     # Plots
@@ -186,6 +195,8 @@ class FIJIGrapher:
         self,
         x: str,
         bins: int = 30,
+        xmin: float | None = None,
+        xmax: float | None = None,
         kde: bool = False,
         title: str | None = None,
     ):
@@ -245,6 +256,7 @@ class FIJIGrapher:
                 va="top"
             )
 
+        plt.xlim(xmin, xmax)
         plt.xlabel(x)
         plt.ylabel("Density")
         plt.title(title or f"Distribution of {x}")
@@ -350,6 +362,67 @@ class FIJIGrapher:
         plt.title(title or f"{y} distribution")
 
         self._annotate_metadata()
+
+    def kill_curve(
+        self,
+        x: str,
+        y: str,
+        hue: str,
+        yerr: str,
+        control_cell_line: str | None = None,
+        treatment_label: str = "Treatment",
+        title: str | None = None,
+    ):
+        """Plot mean cell survival with SEM at each treatment dose."""
+        self.assert_columns(x, y, hue, yerr)
+
+        cell_lines = sorted(self.data[hue].dropna().unique(), key=str.casefold)
+        if control_cell_line in cell_lines:
+            cell_lines.remove(control_cell_line)
+            cell_lines.insert(0, control_cell_line)
+
+        self._new_figure(figsize=(8, 5))
+        curve_ax = plt.gca()
+        palette = sns.color_palette("colorblind", n_colors=max(len(cell_lines), 1))
+
+        for index, cell_line in enumerate(cell_lines):
+            series = self.data.loc[self.data[hue].eq(cell_line)].sort_values(x)
+            is_control = cell_line == control_cell_line
+            legend_label = f"{cell_line} (control)" if is_control else str(cell_line)
+            errors = series[yerr].fillna(0)
+            curve_ax.errorbar(
+                series[x],
+                series[y],
+                yerr=errors,
+                label=legend_label,
+                color=palette[index],
+                marker="o",
+                markersize=8 if is_control else 6,
+                linewidth=3 if is_control else 2,
+                capsize=4,
+            )
+
+        # curve_ax.axhline(
+        #     100,
+        #     color="#666666",
+        #     linestyle="--",
+        #     linewidth=1,
+        #     alpha=0.7,
+        #     label="100% survival",
+        # )
+
+        curve_ax.set_xlabel(treatment_label)
+        curve_ax.set_ylabel("Survival (%)")
+        curve_ax.set_title(title or "Cell survival kill curve")
+        # curve_ax.set_ylim(bottom=0.00)
+        curve_ax.set_xlim(left=0)
+        curve_ax.set_yticks(np.arange(0, 101, 10))
+        curve_ax.set_yticklabels([f"{i}%" for i in np.arange(0, 101, 10)])
+        curve_ax.set_yscale("log")
+        curve_ax.minorticks_on()
+        curve_ax.tick_params(axis="y", which="minor", length=3, width=0.8, color="gray")
+        curve_ax.grid(False)
+        curve_ax.legend(frameon=True)
 
     # ----------------------------
     # Metadata annotation

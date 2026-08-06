@@ -9,207 +9,293 @@ ANOVA using survival data across various treatments and cell lines.
 """
 
 import csv
-import os
+from dataclasses import dataclass
 import pathlib
+
 import pandas as pd
 import statsmodels.api as sm
-# from numba.core.types import none
 from statsmodels.formula.api import ols
-import scipy.stats
-# import Tool_Box
-# from statsmodels.stats.multicomp import pairwise_tukeyhsd
-# from scipy.optimize import curve_fit
 
-def test_data():
-    """
-    Lists used for testing.
-    :return:
-    """
 
-    treatment1 = ['0','0','0','0','0','0',
-                  '15','15','15','15','15','15',
-                  '30','30','30','30','30','30',
-                  '45','45','45','45','45','45',
-                  '60','60','60','60','60','60',
-                  ]
+class DataProcessingError(ValueError):
+    """Raised when the summary files do not contain usable statistics data."""
 
-    treatment2 = ['0','0','0','0','0','0','0','0','0',
-                  '15','15','15','15','15','15','15','15','15',
-                  '30','30','30','30','30','30','30','30','30',
-                  '45','45','45','45','45','45','45','45','45',
-                  '60','60','60','60','60','60','60','60','60',
-                  ]
-    treatment3 = ['0', '0', '0', '0', '0', '0', '0', '0', '0',
-                  '15', '15', '15', '15', '15', '15', '15', '15', '15',
-                  '30', '30', '30', '30', '30', '30', '30', '30', '30',
-                  '45', '45', '45', '45', '45', '45', '45', '45', '45',
-                  '60', '60', '60', '60', '60', '60', '60', '60', '60']
 
-    cell_line1 = ['TP53','TP53','TP53','V3','V3','V3',
-                  'TP53','TP53','TP53','V3','V3','V3',
-                  'TP53','TP53','TP53','V3','V3','V3',
-                  'TP53','TP53','TP53','V3','V3','V3',
-                  'TP53','TP53','TP53','V3','V3','V3',]
+@dataclass
+class AnovaResult:
+    """Makes it less of a pain to access elements of the ANOVA results later in the script."""
+    comparison: str
+    p_value: float
+    table: pd.DataFrame
 
-    cell_line2 = ['TP53','TP53','TP53','V1','V1','V1','V3','V3','V3',
-                  'TP53','TP53','TP53','V1','V1','V1','V3','V3','V3',
-                  'TP53','TP53','TP53','V1','V1','V1','V3','V3','V3',
-                  'TP53','TP53','TP53','V1','V1','V1','V3','V3','V3',
-                  'TP53','TP53','TP53','V1','V1','V1','V3','V3','V3',]
 
-    cell_line3 = ['TP53', 'TP53', 'TP53', 'V1', 'V1', 'V1', 'V3', 'V3', 'V3',
-                  'TP53', 'TP53', 'TP53', 'V1', 'V1', 'V1', 'V3', 'V3', 'V3',
-                  'TP53', 'TP53', 'TP53', 'V1', 'V1', 'V1', 'V3', 'V3', 'V3',
-                  'TP53', 'TP53', 'TP53', 'V1', 'V1', 'V1', 'V3', 'V3', 'V3',
-                  'TP53', 'TP53', 'TP53', 'V1', 'V1', 'V1', 'V3', 'V3', 'V3']
-
-    survival1 = [97.16,94.43,108.41,93.42,97.37,109.21,
-                 91.02,101.25,97.84,92.98,100.88,116.23,
-                 92.05,92.73,97.16,99.56,106.58,111.84,
-                 72.27,94.09,87.27,86.4,95.18,92.54,
-                 57.27,68.52,78.07,91.67,65.35,100]
-
-    survival2 = [97.16,94.43,108.41,103.22,99.89,96.89,93.42,97.37,109.21,
-                 91.02,101.25,97.84,62.93,76.25,70.92,92.98,100.88,116.23,
-                 92.05,92.73,97.16,62.26,57.27,58.6,99.56,106.58,111.84,
-                 72.27,94.09,87.27,34.3,33.63,25.64,86.4,95.18,92.54,
-                 57.27,68.52,78.07,20.31,15.65,15.65,91.67,65.35,100]
-
-    survival3 = [97.16, 94.43, 108.41, 103.22, 99.89, 96.89, 93.42, 97.37, 109.21,
-                 91.02, 101.25, 97.84, 62.93, 76.25, 70.92, 92.98, 100.88, 116.23,
-                 92.05, 92.73, 97.16, 62.26, 57.27, 58.6, 99.56, 106.58, 111.84,
-                 72.27, 94.09, 87.27, 34.3, 33.63, 25.64, 86.4, 95.18, 92.54,
-                 57.27, 68.52, 78.07, 20.31, 15.65, 15.65, 91.67, 65.35, 100.0]
-
-def significance(df, cell_list, output_string):
-    """
-    Performs statistical significance analysis on survival data.
-    :return:
-    """
+def significance(df, cell_list):
+    comparison_results = []
     control_cell_line = cell_list[0]
+
     for cell_line in cell_list[1:]:
-        # print(f"Comparing {control_cell_line} vs {cell_line}")
-        filtered_df = df.loc[df['Cell_Line'].isin([control_cell_line, cell_line])].copy()
-        model = ols('Survival ~ C(Cell_Line) * C(Treatment)', data=filtered_df).fit()
+        # Select the two cell lines being compared.
+        filtered_df = df.loc[
+            df["Cell_Line"].isin([control_cell_line, cell_line])
+        ].copy()
+
+        model = ols(
+            "Survival ~ C(Cell_Line) * C(Treatment)", data=filtered_df
+        ).fit()
         anova_table = sm.stats.anova_lm(model, typ=2)
-        # output_string += f'{control_cell_line} vs {cell_line}\t{round(anova_table.iat[2, 3], 4)}\n'
-        output_string += f'{control_cell_line} vs {cell_line}\t{anova_table.iat[2, 3]}\n'
-        # print(anova_table)
-        # print(f'Anova p_Val for {control_cell_line} vs {cell_line}\t {round(anova_table.iat[2, 3], 4)}\n')
-    return output_string
+
+        # Interaction p-value that we care about is at row 3, column 4.
+        interaction_p_value = float(anova_table.iat[2, 3])
+        comparison_results.append(
+            AnovaResult(
+                comparison=f"{control_cell_line} vs {cell_line}",
+                p_value=interaction_p_value,
+                table=anova_table,
+            )
+        )
+
+    return comparison_results
 
 
-def data_processing(input_path=None, output_path=None):
-    # input_path = "D:{0}Colony Images{0}".format(os.sep)
+def _read_metadata(summary_file):
+    """Read the cell-line metadata written above the summary table."""
     cell_line = ""
-    cell_line_names = []
-    cell_line_count = 0
-    treatment = ""
-    raw_data_dict = {}
+    treatment_name = ""
+    is_control = False
 
-    # find all txt files in the input_path directory and process them one by one.
-    for file in pathlib.Path(input_path).glob("*.txt"):
-        ctrl_sample = False
-        open_file = csv.reader(open(file), delimiter='\t')
-
-        for line in open_file:
-            # Skip empty lines
+    with open(summary_file, newline="", encoding="utf-8-sig") as handle:
+        for line in csv.reader(handle, delimiter="\t"):
             if not line:
                 continue
 
-            # Convert the control sample flag to boolean
-            if line[0] == '# CTRL_Sample':
-                ctrl_sample = line[1].lower() in ("yes", "y", "true", "1")
-
-            # Get the cell line name from the file
+            if line[0] in ("# CTRL Sample=", "# CTRL_Sample"):
+                is_control = line[1].strip().lower() in ("yes", "y", "true", "1")
             elif line[0] == "# Cell Line=":
-                cell_line = line[1]
-                cell_line_names.append(cell_line)
-                cell_line_count += 1
-
-            # Get the treatment name from the file
+                cell_line = line[1].strip()
             elif line[0] == "# Treatment=":
-                treatment = line[1]
+                treatment_name = line[1].strip()
 
-            # Get the group values and colony counts into a dictionary.
-            elif ".tif" in line[0]:
-                concentration = line[1]
-                cell_line_key = "{}|{}|{}|{}".format(cell_line, treatment, concentration, ctrl_sample)
-                if cell_line_key not in raw_data_dict:
-                    raw_data_dict[cell_line_key] = []
-                raw_data_dict[cell_line_key].append(int(line[2]))
-
-    # Tool_Box.debug_messenger(raw_data_dict)
-    normalized_average_colonies = {}
-    ctrl_normal_dict = {}
-    survival_dict = {}
-    # Normalize the colony counts by the control group
-    for cell_line_key, colonies in raw_data_dict.items():
-        colony_average = round(sum(colonies) / len(colonies), 2)
-        cell_line_name = cell_line_key.split("|")[0]
-        group_value = cell_line_key.split("|")[2]
-        survival_key = "{}|{}".format(group_value,cell_line_name)
-
-        if group_value == "0":
-            ctrl_average = colony_average
-
-        if cell_line_key not in ctrl_normal_dict:
-            ctrl_normal_dict[cell_line_key] = []
-
-        for colony in colonies:
-            ctrl_normal_dict[cell_line_key].append(round((colony/ctrl_average)*100, 1))
-
-        survival = ctrl_normal_dict[cell_line_key]
-        normalized_colony_sem = round(scipy.stats.sem(ctrl_normal_dict[cell_line_key]), 2)
-        normalized_colony_average = round(sum(ctrl_normal_dict[cell_line_key]) / len(ctrl_normal_dict[cell_line_key]), 1)
-
-        # This is the data for plotting the survival curve
-        if cell_line_key not in normalized_average_colonies:
-            normalized_average_colonies[cell_line_key] = []
-        normalized_average_colonies[cell_line_key].append((normalized_colony_average, float(normalized_colony_sem)))
-
-        survival_dict[survival_key] = survival
-
-    anova_dict = {}
-    for survival_key, survival_values in survival_dict.items():
-
-        group_value = survival_key.split("|")[0]
-        cell_line_name = survival_key.split("|")[1]
-        if group_value not in anova_dict:
-            anova_dict[group_value] = [[],[],[]]
-
-        for i in range(len(survival_values)):
-            anova_dict[group_value][0].append(group_value)
-            anova_dict[group_value][1].append(cell_line_name)
-            anova_dict[group_value][2].append(survival_values[i])
-
-    treatment_list = []
-    cell_line_list = []
-    survival_list = []
-    for group_value, data in anova_dict.items():
-        treatment_list.extend(data[0])
-        cell_line_list.extend(data[1])
-        survival_list.extend(data[2])
-
-    df = pd.DataFrame({
-        "Treatment":treatment_list,
-        "Cell_Line":cell_line_list,
-        "Survival":survival_list
-    })
-
-    # Tool_Box.debug_messenger(df)
-    print("Number of Cell Lines in the Dataset", cell_line_count)
-    print("Cell Line Names", cell_line_names)
-    output_string = "Comparison\tp-Value\n"
-    for i in range(cell_line_count-1):
-        output_string = significance(df, cell_line_names[i:], output_string)
-    return ("Final Output String \n", output_string)
-    """
-    output_file = "C:{0}Users{0}dennis{0}Documents{0}Anova_output.csv".format(os.sep)
-    with open(output_file, 'w') as f:
-        f.write(output_string)
-    """
+    if not cell_line:
+        raise DataProcessingError(
+            f"{pathlib.Path(summary_file).name} does not contain a cell-line name."
+        )
+    return cell_line, treatment_name, is_control
 
 
-if __name__ == '__main__':
+def _significance_symbol(p_value):
+    if p_value < 0.0001:
+        return "****"
+    if p_value < 0.001:
+        return "***"
+    if p_value < 0.01:
+        return "**"
+    if p_value < 0.05:
+        return "*"
+    return "ns"
+
+
+def data_processing(input_path=None, output_path=None):
+
+    selected_path = output_path or input_path
+    if not selected_path:
+        raise DataProcessingError("An output directory is required.")
+    analysis_path = pathlib.Path(selected_path)
+    summary_files = sorted(analysis_path.glob("Summary_*.txt"))
+    if not summary_files:
+        raise DataProcessingError(
+            f"No Summary_*.txt files were found in {analysis_path}."
+        )
+
+    data_frames = []
+    cell_line_names = []
+    treatment_names = []
+    control_cell_lines = []
+
+    # No more dictionaries, doing pandas here now
+    for summary_file in summary_files:
+        cell_line, treatment_name, is_control = _read_metadata(summary_file)
+        summary_data = pd.read_csv(summary_file, sep="\t", comment="#")
+
+        # The Jython writer pads fields for a readable plain-text table. Remove
+        # that display-only whitespace after pandas splits the real tab columns.
+        summary_data.columns = summary_data.columns.str.strip()
+        for column in summary_data.select_dtypes(include="object").columns:
+            summary_data[column] = summary_data[column].str.strip()
+
+        required_columns = {"ImageName", "Group", "Colonies"}
+        missing_columns = required_columns - set(summary_data.columns)
+        if missing_columns:
+            raise DataProcessingError(
+                f"{summary_file.name} is missing: {', '.join(sorted(missing_columns))}."
+            )
+
+        # Older summary files do not have seeded-cell information.
+        if "SeededCells" not in summary_data.columns:
+            summary_data["SeededCells"] = pd.NA
+
+        # Convert the numeric inputs before combining the summary files.
+        summary_data["Group"] = pd.to_numeric(summary_data["Group"], errors="coerce")
+        summary_data["Colonies"] = pd.to_numeric(
+            summary_data["Colonies"], errors="coerce"
+        )
+        summary_data["SeededCells"] = pd.to_numeric(
+            summary_data["SeededCells"], errors="coerce"
+        )
+        if summary_data[["Group", "Colonies"]].isna().any().any():
+            raise DataProcessingError(
+                f"{summary_file.name} contains a nonnumeric group or colony count."
+            )
+
+        # Add the metadata as columns so all later grouping uses pandas.
+        summary_data["Cell_Line"] = cell_line
+        summary_data["Treatment_Name"] = treatment_name
+        summary_data["Control_Cell_Line"] = is_control
+        summary_data["Source_File"] = summary_file.name
+        data_frames.append(summary_data)
+        cell_line_names.append(cell_line)
+        treatment_names.append(treatment_name)
+        if is_control:
+            control_cell_lines.append(cell_line)
+
+    if len(set(cell_line_names)) != len(cell_line_names):
+        raise DataProcessingError("Each summary file must have a unique cell-line name.")
+    if len(control_cell_lines) > 1:
+        raise DataProcessingError("Only one cell line may be marked as the control.")
+    if len(set(treatment_names)) > 1:
+        raise DataProcessingError("All summary files must use the same treatment name.")
+
+    # Put the marked control first so comparison labels are easy to read.
+    if control_cell_lines:
+        control_name = control_cell_lines[0]
+        cell_line_names.remove(control_name)
+        cell_line_names.insert(0, control_name)
+
+    # Combine all image rows into one tidy DataFrame.
+    raw_data = pd.concat(data_frames, ignore_index=True)
+
+    # Use colonies per seeded cell when seeded-cell counts were supplied.
+    seeded_cells_used = raw_data["SeededCells"].notna().any()
+    if seeded_cells_used:
+        if raw_data["SeededCells"].isna().any() or (raw_data["SeededCells"] <= 0).any():
+            raise DataProcessingError(
+                "Seeded-cell counts must be provided for every image and be greater than 0."
+            )
+        raw_data["Colony_Rate"] = raw_data["Colonies"] / raw_data["SeededCells"]
+    else:
+        # This preserves the original calculation for older data.
+        raw_data["Colony_Rate"] = raw_data["Colonies"]
+
+    # Calculate the dose-0 mean separately for every cell line.
+    control_means = (
+        raw_data.loc[raw_data["Group"] == 0]
+        .groupby("Cell_Line", as_index=False)["Colony_Rate"]
+        .mean()
+        .rename(columns={"Colony_Rate": "Control_Average"})
+    )
+    missing_controls = set(cell_line_names) - set(control_means["Cell_Line"])
+    if missing_controls:
+        raise DataProcessingError(
+            "A dose-0 group is required for: " + ", ".join(sorted(missing_controls))
+        )
+    if (control_means["Control_Average"] == 0).any():
+        raise DataProcessingError("Dose-0 mean colony values must be greater than 0.")
+
+    # Merge the control mean onto each observation and calculate survival.
+    raw_data = raw_data.merge(control_means, on="Cell_Line", how="left")
+    raw_data["Survival"] = (
+        raw_data["Colony_Rate"] / raw_data["Control_Average"] * 100
+    ).round(1)
+
+    # Keep the original column names used by the ANOVA formula.
+    anova_data = raw_data.rename(columns={"Group": "Treatment"})[
+        ["Treatment", "Cell_Line", "Survival"]
+    ]
+
+    # Run the same all-pairs comparison loop used by the original script.
+    anova_results = []
+    for index in range(len(cell_line_names) - 1):
+        anova_results.extend(significance(anova_data, cell_line_names[index:]))
+
+    # Summarize mean survival and SEM at each dose for the report and plot.
+    dose_summary = (
+        raw_data.groupby(["Cell_Line", "Group"], as_index=False)
+        .agg(
+            Replicates=("Survival", "size"),
+            Seeded_Cells=("SeededCells", "first"),
+            Mean_Colonies=("Colonies", "mean"),
+            Mean_Colony_Rate=("Colony_Rate", "mean"),
+            Mean_Survival=("Survival", "mean"),
+            SEM_Survival=("Survival", "sem"),
+        )
+        .sort_values(["Cell_Line", "Group"])
+    )
+
+    # Write a readable report containing the summary and each full ANOVA table.
+    report_path = analysis_path / "statistics_summary.txt"
+    with open(report_path, "w", encoding="utf-8") as report:
+        report.write("countPHICS2 Statistics Summary\n")
+        report.write("================================\n")
+        report.write(f"Treatment:\t{treatment_names[0] or 'Treatment'}\n")
+        report.write(f"Cell lines:\t{', '.join(cell_line_names)}\n")
+        report.write(
+            f"Control cell line:\t{control_cell_lines[0] if control_cell_lines else 'None'}\n"
+        )
+        report.write(
+            f"Seeded-cell correction:\t{'Used' if seeded_cells_used else 'Not used'}\n\n"
+        )
+
+        report.write("DOSE SUMMARY\n")
+        report.write("------------\n")
+        dose_summary.to_csv(report, sep="\t", index=False, float_format="%.4g")
+        report.write("\nANOVA COMPARISONS\n")
+        report.write("-----------------\n")
+
+        for result in anova_results:
+            report.write(
+                f"{result.comparison}\tInteraction p-value={result.p_value:.6g}"
+                f"\t{_significance_symbol(result.p_value)}\n"
+            )
+            result.table.to_csv(report, sep="\t", float_format="%.6g")
+            report.write("\n")
+
+    # Convert the summaries into the column names expected by FIJIGrapher.
+    curve_data = dose_summary.rename(
+        columns={
+            "Cell_Line": "CellLine",
+            "Group": "Treatment",
+            "Mean_Survival": "MeanSurvivalPercent",
+            "SEM_Survival": "SEMSurvivalPercent",
+        }
+    )
+    # Draw and save one kill curve with a different color for each cell line.
+    from libraries.grapher import FIJIGrapher
+    import matplotlib.pyplot as plt
+
+    plots_path = analysis_path / "plots"
+    plots_path.mkdir(exist_ok=True)
+    grapher = FIJIGrapher()
+    grapher.set_data(curve_data)
+    grapher.kill_curve(
+        x="Treatment",
+        y="MeanSurvivalPercent",
+        hue="CellLine",
+        yerr="SEMSurvivalPercent",
+        control_cell_line=control_cell_lines[0] if control_cell_lines else None,
+        treatment_label=treatment_names[0] or "Treatment",
+        title="Cell survival kill curve",
+    )
+    grapher.save_current_plot(plots_path / "kill_curve.png")
+    grapher.save_current_plot(plots_path / "kill_curve.svg", svg=True)
+    plt.close()
+
+    return (
+        f"Saved {report_path.name} and plots for {len(cell_line_names)} cell lines.\n"
+        f"Treatment: {treatment_names[0] or 'Treatment'} -- Cell lines: {', '.join(cell_line_names)} -- Control line: {control_cell_lines[0] if control_cell_lines else 'None'}\n"
+        f"Results saved in {report_path}\n"
+        f"ANOVA p-values:\n"
+        + "\n".join(
+            f"{result.comparison}: p={result.p_value:.6g}" for result in anova_results)
+    )
+
+if __name__ == "__main__":
     data_processing()
