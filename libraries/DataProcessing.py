@@ -20,7 +20,6 @@ from statsmodels.formula.api import ols
 class DataProcessingError(ValueError):
     """Raised when the summary files do not contain usable statistics data."""
 
-
 @dataclass
 class AnovaResult:
     """Makes it less of a pain to access elements of the ANOVA results later in the script."""
@@ -116,11 +115,11 @@ def data_processing(input_path=None, output_path=None):
         cell_line, treatment_name, is_control = _read_metadata(summary_file)
         summary_data = pd.read_csv(summary_file, sep="\t", comment="#")
 
-        # The Jython writer pads fields for a readable plain-text table. Remove
-        # that display-only whitespace after pandas splits the real tab columns.
-        summary_data.columns = summary_data.columns.str.strip()
-        for column in summary_data.select_dtypes(include="object").columns:
-            summary_data[column] = summary_data[column].str.strip()
+        # The Jython writer pads fields for a readable plain-text table. Remove that display-only whitespace after pandas splits the real tab columns.
+        # No need for this anymore since writing the summary file in readable format didn't really work.
+        # summary_data.columns = summary_data.columns.str.strip()
+        # for column in summary_data.select_dtypes(include="object").columns:
+        #     summary_data[column] = summary_data[column].str.strip()
 
         required_columns = {"ImageName", "Group", "Colonies"}
         missing_columns = required_columns - set(summary_data.columns)
@@ -267,6 +266,7 @@ def data_processing(input_path=None, output_path=None):
             "SEM_Survival": "SEMSurvivalPercent",
         }
     )
+    
     # Draw and save one kill curve with a different color for each cell line.
     from libraries.grapher import FIJIGrapher
     import matplotlib.pyplot as plt
@@ -284,6 +284,8 @@ def data_processing(input_path=None, output_path=None):
         treatment_label=treatment_names[0] or "Treatment",
         title="Cell survival kill curve",
     )
+    
+    # Save both png and svg for now, might make optional later
     grapher.save_current_plot(plots_path / "kill_curve.png")
     grapher.save_current_plot(plots_path / "kill_curve.svg", svg=True)
     plt.close()

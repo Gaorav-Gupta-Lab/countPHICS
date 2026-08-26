@@ -193,8 +193,7 @@ class GroupAssignmentDialog(QDialog):
         ]
         seeded_values = [row["seeded_cells"].value() for row in completed_rows]
 
-        # Seeded-cell counts are optional, but partial values would produce an
-        # invalid normalization. Require all rows once any value is supplied.
+        # Seeded-cell counts are optional, but partial values would produce an invalid normalization. Require all rows once any value is supplied.
         if any(seeded_values) and not all(seeded_values):
             QMessageBox.warning(
                 self,
